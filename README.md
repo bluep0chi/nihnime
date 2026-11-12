@@ -1,5 +1,9 @@
 # NIHNIME — Aplikasi Streaming Anime Sub Indo
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/bluep0chi/nihnime)
+
+> Panduan deploy lengkap: lihat [DEPLOY.md](DEPLOY.md)
+
 Versi anime dari aplikasi donghua: **UI dipertahankan** (tema gelap, hero banner slider,
 row poster geser, navigasi atas + bottom-nav mobile, halaman detail & player) tapi seluruh
 konten diganti dari donghua menjadi **anime** memakai API AnimeIn, dan di-upgrade ke

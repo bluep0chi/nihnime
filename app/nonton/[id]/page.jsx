@@ -45,7 +45,9 @@ function Inner({ episodeId }) {
 
       <div className="relative aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl">
         {server?.url ? (
-          <video key={server.url} src={server.url} controls autoPlay playsInline className="w-full h-full" poster={anime?.image_cover || anime?.image_poster || undefined} />
+          <video key={server.url} src={server.url} controls autoPlay playsInline className="w-full h-full" poster={anime?.image_cover || anime?.image_poster || undefined}
+            onLoadedMetadata={(e) => { const p = store.getProgress(episodeId); if (p > 0) e.currentTarget.currentTime = p; }}
+            onTimeUpdate={(e) => { const v = e.currentTarget; if (Math.round(v.currentTime) % 5 === 0) store.saveProgress(episodeId, v.currentTime, v.duration); }} />
         ) : (
           <div className="absolute inset-0 grid place-items-center text-center p-6 text-zinc-400 text-sm">Server streaming belum tersedia untuk episode ini.<br />Coba episode lain atau refresh sebentar lagi.</div>
         )}

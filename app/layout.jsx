@@ -4,6 +4,8 @@ import { Navbar, BottomNav } from "@/components/ui";
 export const metadata = {
   title: "NIHNIME — Nonton Anime Sub Indo Gratis",
   description: "Streaming anime subtitle Indonesia terbaru: episode baru, jadwal rilis, genre, studio, dan ribuan judul anime sub Indo.",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#08080d",
 };
 
 export default function RootLayout({ children }) {

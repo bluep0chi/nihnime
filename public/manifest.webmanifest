@@ -1,0 +1,10 @@
+{
+  "name": "NIHNIME — Nonton Anime Sub Indo",
+  "short_name": "NIHNIME",
+  "description": "Streaming anime subtitle Indonesia terbaru.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08080d",
+  "theme_color": "#08080d",
+  "icons": [{ "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }]
+}

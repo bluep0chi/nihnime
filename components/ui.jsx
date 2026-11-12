@@ -15,12 +15,26 @@ export function Logo() {
 
 export function Navbar() {
   const [q, setQ] = useState("");
+  const [sug, setSug] = useState([]);
+  const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 24);
     fn(); window.addEventListener("scroll", fn);
     return () => window.removeEventListener("scroll", fn);
   }, []);
+  // Saran pencarian live (debounce 300ms)
+  useEffect(() => {
+    if (q.trim().length < 2) { setSug([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/list?mode=search&q=${encodeURIComponent(q.trim())}&page=0`);
+        const body = await res.json();
+        setSug((body.data || []).slice(0, 7));
+      } catch { setSug([]); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
   return (
     <header className={`fixed top-0 inset-x-0 z-50 transition-all ${scrolled ? "bg-[#08080d]/90 backdrop-blur-xl border-b border-white/5" : "bg-gradient-to-b from-black/70 to-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
@@ -31,12 +45,29 @@ export function Navbar() {
           <Link className="px-3 py-2 rounded-full hover:bg-white/10 hover:text-white" href="/jelajahi">Jelajahi</Link>
           <Link className="px-3 py-2 rounded-full hover:bg-white/10 hover:text-white" href="/bookmark">Bookmark</Link>
         </nav>
-        <form className="ml-auto flex-1 max-w-md" action="/pencarian">
+        <form className="ml-auto flex-1 max-w-md relative" action="/pencarian" autoComplete="off">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input name="q" defaultValue={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari anime… (mis. Naruto)" autoComplete="off"
+            <input name="q" value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 180)} placeholder="Cari anime… (mis. Naruto)"
               className="w-full bg-white/8 border border-white/10 focus:border-rose-500/60 focus:bg-white/10 outline-none rounded-full pl-9 pr-4 py-2 text-sm placeholder:text-zinc-500 backdrop-blur" />
           </div>
+          {open && sug.length > 0 && (
+            <div className="absolute top-full mt-2 inset-x-0 bg-[#12121c] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+              {sug.map((a) => (
+                <Link key={a.id} href={`/anime/${a.id}`} onClick={() => setOpen(false)} className="flex items-center gap-3 px-3 py-2 hover:bg-rose-600/15 transition">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {a.image_poster && <img src={a.image_poster} alt="" className="w-9 h-12 object-cover rounded-md shrink-0" />}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium line-clamp-1">{a.title}</span>
+                    <span className="block text-[11px] text-zinc-500">{[a.type, a.year, a.genre].filter(Boolean).join(" • ")}</span>
+                  </span>
+                  <Eye size={13} className="ml-auto text-zinc-500 shrink-0" />
+                  <span className="text-[11px] text-zinc-500">{formatViews(a.views)}</span>
+                </Link>
+              ))}
+              <Link href={`/pencarian?q=${encodeURIComponent(q)}`} onClick={() => setOpen(false)} className="block px-3 py-2.5 text-center text-xs font-semibold text-rose-400 hover:bg-rose-600/10">Lihat semua hasil untuk “{q}”</Link>
+            </div>
+          )}
         </form>
       </div>
     </header>

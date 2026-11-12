@@ -34,3 +34,11 @@ User-Agent `okhttp/4.9.3` agar tidak kena Cloudflare/CORS, plus cache Next.js.
 
 > Catatan: ZIP source donghua asli tidak bisa diunduh dari sandbox build ini
 > (CDN terblokir), jadi UI dibangun ulang mengikuti pola UI aplikasi donghua aslinya.
+
+### Update lanjutan
+- Saran pencarian live di navbar (poster + info singkat, debounce)
+- Section **Just For You** di beranda (endpoint `data/home/fyp`)
+- Filter genre multi-pilih + urutan Populer / A–Z di halaman daftar
+- **Resume playback**: posisi video disimpan, lanjut otomatis saat episode dibuka lagi
+  (progress bar muncul di "Lanjutkan Menonton")
+- Manifest PWA (bisa di-install / Add to Home Screen)

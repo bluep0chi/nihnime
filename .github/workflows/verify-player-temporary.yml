@@ -1,0 +1,97 @@
+name: Verify NIHNIME player on production
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Prepare browser and synthetic video files
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.65.1
+          if ! command -v google-chrome >/dev/null; then npx playwright install --with-deps chromium; fi
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+          for duration in 1442 1445; do
+            ffmpeg -hide_banner -loglevel error -f lavfi -i 'color=c=0x25314a:s=320x180:r=1' -t "$duration" -c:v libx264 -preset ultrafast -g 1 -pix_fmt yuv420p -movflags +faststart -y "/tmp/nihnime-$duration.mp4"
+          done
+      - name: Verify real metadata, player and conservative intro matching
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import { existsSync, readFileSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const base = 'https://nihnime.vercel.app';
+          const fail = (error) => {
+            console.log(`::error::${String(error?.stack || error).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A').slice(0, 2500)}`);
+            process.exit(1);
+          };
+          process.on('uncaughtException', fail);
+          process.on('unhandledRejection', fail);
+          const getData = async (path) => {
+            const response = await fetch(base + path, { signal: AbortSignal.timeout(60000) });
+            const body = await response.json();
+            if (!response.ok || body.status !== 200) throw new Error(`${path}: ${body.message || response.status}`);
+            return body.data;
+          };
+          const stream = await getData('/api/stream/322056');
+          assert.equal(String(stream.episode.index), '7');
+          const expected = await getData('/api/intro/322056?anime=6483&duration=1442.000');
+          assert.equal(expected.source, 'AniSkip');
+          assert.equal(expected.episode, 7);
+          assert.ok(expected.start >= 0 && expected.end > expected.start);
+          assert.equal(await getData('/api/intro/322056?anime=6483&duration=1445.000'), null);
+          assert.equal(await getData('/api/intro/322056?anime=5566&duration=1442.000'), null);
+          console.log(`::notice::Data nyata: episode 7 memakai opening AniSkip ${expected.start}–${expected.end} detik; durasi atau season yang salah ditolak.`);
+
+          const sources = new Map(stream.servers.filter(s => s.type === 'direct').map(s => [new URL(s.url).href, s.quality]));
+          assert.ok([...sources.values()].some(q => q === '720p'));
+          assert.ok([...sources.values()].some(q => q === '480p'));
+          const exe = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].find(existsSync);
+          const browser = await chromium.launch({ headless: true, ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox'] });
+          const page = await browser.newPage({ viewport: { width: 1200, height: 900 }, colorScheme: 'light' });
+          const errors = [];
+          page.on('pageerror', e => errors.push(e.message));
+          await page.route('**/*', async route => {
+            const quality = sources.get(route.request().url());
+            if (!quality) return route.continue();
+            const buffer = readFileSync(`/tmp/nihnime-${quality === '720p' ? 1442 : 1445}.mp4`);
+            const match = route.request().headers().range?.match(/bytes=(\d+)-(\d*)/);
+            const headers = { 'accept-ranges': 'bytes', 'content-type': 'video/mp4' };
+            if (!match) return route.fulfill({ status: 200, headers, body: buffer });
+            const start = Number(match[1]), end = match[2] ? Math.min(Number(match[2]), buffer.length - 1) : buffer.length - 1;
+            return route.fulfill({ status: 206, headers: { ...headers, 'content-range': `bytes ${start}-${end}/${buffer.length}`, 'content-length': String(end-start+1) }, body: buffer.subarray(start,end+1) });
+          });
+          await page.goto(base + '/episode/322056?anime=6483', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.locator('#video-player-video').waitFor({ timeout: 90000 });
+          await page.waitForFunction(() => Math.abs(document.querySelector('video')?.duration - 1442) < 1, null, { timeout: 30000 });
+          await page.getByText('Intro dari', { exact: false }).waitFor({ timeout: 90000 });
+          assert.equal(await page.locator('video').getAttribute('controls'), null);
+          await page.locator('video').evaluate((video, t) => { video.currentTime = t; }, expected.start + Math.min(4, (expected.end - expected.start) / 2));
+          await page.getByRole('button', { name: 'Lewati Intro' }).click({ timeout: 30000 });
+          await page.waitForFunction(t => Math.abs(document.querySelector('video').currentTime-t) < .3, expected.end);
+          const option = await page.locator('#servers option').evaluateAll(options => options.find(option => /480p.*Video langsung/.test(option.textContent))?.value);
+          assert.ok(option);
+          await page.selectOption('#servers', option);
+          await page.waitForFunction(() => Math.abs(document.querySelector('video')?.duration - 1445) < 1, null, { timeout: 30000 });
+          await page.getByText('Intro belum tersedia atau tidak cocok', { exact: false }).waitFor({ timeout: 90000 });
+          await page.locator('video').evaluate((video, t) => { video.currentTime = t; }, expected.start + 4);
+          assert.equal(await page.getByRole('button', { name: 'Lewati Intro' }).count(), 0);
+          await page.setViewportSize({ width: 320, height: 900 });
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+          assert.deepEqual(errors, []);
+          console.log('::notice::Pemutar produksi, loncat ke batas opening, ganti server dan tampilan 320px lolos memakai video sintetis; ini bukan uji isi video AnimeIn.');
+          await browser.close();
+          try {
+            const preferred = stream.servers.find(s => s.type === 'direct' && s.quality === '720p');
+            const response = await fetch(preferred.url, { method: 'HEAD', signal: AbortSignal.timeout(15000) });
+            console.log(`::notice::Probe host video langsung dari runner: HTTP ${response.status}; pemutaran asli bergantung pada jaringan pengguna.`);
+          } catch (error) {
+            console.log(`::notice::Probe host video langsung dari runner gagal: ${String(error.message).slice(0, 150)}; pemutaran asli bergantung pada jaringan pengguna.`);
+          }
+          JS

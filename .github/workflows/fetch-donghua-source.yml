@@ -50,6 +50,12 @@ jobs:
           const page = await browser.newPage();
           const errors = [];
           page.on('pageerror', (error) => errors.push(error.message));
+          await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 45000 });
+          await page.locator('.anime1-item-img').first().waitFor({ timeout: 45000 });
+          await page.waitForFunction(() => [...document.querySelectorAll('.anime1-item-img')].slice(0, 4).every((image) => image.complete), null, { timeout: 30000 });
+          const artwork = await page.locator('.anime1-item-img').evaluateAll((images) => images.slice(0, 4).map((image) => ({ loaded: image.naturalWidth > 0, fallback: image.currentSrc.includes('/images/nihnime.jpg') })));
+          console.log('Recent poster checks:', JSON.stringify(artwork));
+          if (!artwork.some((image) => image.loaded && !image.fallback)) throw new Error('No recent poster loaded from its provider');
           await page.goto(`${base}/episode/${choice.episode.id}?anime=${choice.anime.id}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await page.locator('video#video-player-video').waitFor({ timeout: 45000 });
           await page.locator('video#video-player-video').evaluate((video) => { video.muted = true; return video.play(); });

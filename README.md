@@ -27,6 +27,17 @@ NIHNIME_DEMO=1 npm run dev
 
 Mode ini memakai ID `demo-*`, menampilkan pemberitahuan, dan menggunakan video contoh. ID anime/episode nyata tidak pernah diam-diam diganti dengan judul atau video demo, bahkan saat mode demo aktif. Tanpa variabel tersebut, kegagalan API ditampilkan sebagai kesalahan yang dapat dicoba ulang.
 
+### Tes tampilan pemutar
+
+Jalankan `npm run dev` di satu terminal. Di terminal lain, instal browser sekali dan jalankan tes:
+
+```bash
+npx playwright-core install chromium
+npm run test:watch-ui
+```
+
+Tes ini menggunakan respons API dan video lokal berukuran kecil untuk memeriksa tema, tata letak, kontrol sentuh, intro, dan navigasi; tes ini tidak membuktikan ketersediaan video penyedia. Jika server memakai alamat lain, tetapkan `WATCH_TEST_BASE_URL`. Browser Chromium yang sudah ada dapat dipilih lewat `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+
 ## Fitur
 
 - Beranda episode terbaru, anime selesai, serta pilihan Sedang Hangat, Paling Populer, dan Judul Baru dari AnimeIn. Navigasi responsif, pencarian, tema terang/gelap, dan daftar A–Z mengikuti gaya source asli.

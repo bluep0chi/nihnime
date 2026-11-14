@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { store } from "@/lib/client";
 import { formatPlayerTime, isHlsUrl, usableIntro } from "@/lib/player.mjs";
+import WatchIcon from "@/components/watch-icon";
 
 function Icon({ name, className = "" }) {
   const common = { className, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
@@ -16,6 +17,7 @@ function Icon({ name, className = "" }) {
     case "fullscreen": return <svg {...common}><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg>;
     case "exit-fullscreen": return <svg {...common}><path d="M4 9h5V4M15 4v5h5M20 15h-5v5M9 20v-5H4" /></svg>;
     case "pip": return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2" /><rect x="12" y="11" width="7" height="5" rx=".5" fill="currentColor" stroke="none" /></svg>;
+    case "speed": return <svg {...common}><path d="M4.5 17a9 9 0 1 1 15 0M8 17h8M12 14l4-4" /><circle cx="12" cy="14" r="1" fill="currentColor" stroke="none" /></svg>;
     case "skip": return <svg {...common}><path d="m5 5 9 7-9 7z" fill="currentColor" stroke="none" /><path d="M18 5v14" strokeWidth="2.5" /></svg>;
     default: return null;
   }
@@ -217,7 +219,7 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
   const introWidth = intro ? (intro.end - intro.start) / duration * 100 : 0;
 
   return <div className="ni-player-block">
-    <div id="video-player-wrapper" ref={wrapperRef} className="ni-player" role="region" aria-label={`Pemutar video NIHNIME: ${title}`} tabIndex={0} onKeyDown={onKeyDown} onPointerMove={showControls} onPointerDown={showControls} onFocus={showControls}>
+    <div id="video-player-wrapper" ref={wrapperRef} className={`ni-player${showIntro ? " ni-player-has-intro" : ""}`} role="region" aria-label={`Pemutar video NIHNIME: ${title}`} tabIndex={0} onKeyDown={onKeyDown} onPointerMove={showControls} onPointerDown={showControls} onFocus={showControls}>
       <video id="video-player-video" ref={videoRef} src={hlsSource ? undefined : src} poster={poster || undefined} playsInline preload="metadata" onClick={togglePlay}
         onError={() => { setWaiting(false); errorRef.current?.(); }}
         onLoadedMetadata={(event) => {
@@ -247,7 +249,10 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
           if (video.volume > 0) lastVolume.current = video.volume;
           try { localStorage.setItem("nihnime:player-volume", String(video.volume)); localStorage.setItem("nihnime:player-muted", String(video.muted)); } catch { /* Optional preference. */ }
         }} onRateChange={(event) => setSpeed(event.currentTarget.playbackRate)} />
-      <div className="ni-player-top" aria-hidden="true"><span><b className="ni-player-dot" /> NIHNIME <strong>PLAYER</strong></span><span className="ni-player-source">{serverLabel}</span></div>
+      <div className="ni-player-top" aria-hidden="true">
+        <span className="ni-player-brand"><img src="/images/logo.png" width="28" height="28" alt="" /><span>NIHNIME <strong>PLAYER</strong></span></span>
+        <span className="ni-player-source"><WatchIcon name="server" /><span>{serverLabel}</span></span>
+      </div>
       {!playing && !waiting && <button type="button" className="ni-player-center" aria-label="Putar video" onClick={togglePlay}><Icon name="play" /></button>}
       {waiting && <div className="ni-player-buffer" role="status" aria-label="Memuat video"><span /></div>}
       {showIntro && <button type="button" className="ni-player-skip" onClick={skipIntro} title="Lewati bagian opening yang tersedia dari AniSkip">Lewati Intro <Icon name="skip" /></button>}
@@ -266,17 +271,19 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
           <Control label={muted || volume === 0 ? "Nyalakan suara" : "Bisukan suara"} icon={muted || volume === 0 ? "muted" : "volume"} onClick={toggleMute} pressed={muted || volume === 0} />
           <input className="ni-player-volume" type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume} aria-label="Volume" onChange={(event) => changeVolume(event.target.value)} />
           <span className="ni-player-spacer" />
-          <select className="ni-player-speed" aria-label="Kecepatan video" title="Kecepatan video" value={speed} onChange={(event) => { if (videoRef.current) videoRef.current.playbackRate = Number(event.target.value); showControls(); }}>
-            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
-          </select>
+          <span className="ni-player-speed-wrap"><Icon name="speed" />
+            <select className="ni-player-speed" aria-label="Kecepatan video" title="Kecepatan video" value={speed} onChange={(event) => { if (videoRef.current) videoRef.current.playbackRate = Number(event.target.value); showControls(); }}>
+              {[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
+            </select>
+          </span>
           {pipAvailable && <Control label={pip ? "Tutup picture-in-picture" : "Picture-in-picture"} icon="pip" onClick={togglePip} pressed={pip} className="ni-player-pip" />}
           {fullscreenAvailable && <Control label={fullscreen ? "Keluar layar penuh" : "Layar penuh"} icon={fullscreen ? "exit-fullscreen" : "fullscreen"} onClick={toggleFullscreen} pressed={fullscreen} />}
         </div>
       </div>
     </div>
     <div className="ni-player-caption">
-      <p>Progres video langsung disimpan di browser ini. Jika video tidak muncul, coba server atau kualitas lain.</p>
-      <p aria-live="polite">{introState.status === "demo" ? "Video contoh tidak memiliki data intro." : introState.status === "waiting" ? "Durasi video diperlukan untuk mencari intro." : introState.status === "loading" ? "Mencocokkan intro dengan episode dan durasi video…" : intro ? <>Intro dari <a href="https://aniskip.com/" target="_blank" rel="noreferrer">AniSkip</a> dicocokkan dengan episode dan durasi. Data komunitas dapat berbeda antarversi video.</> : "Intro belum tersedia atau tidak cocok untuk episode dan versi video ini."}</p>
+      <p><WatchIcon name="clock" /><span>Progres video langsung disimpan di browser ini. Jika video tidak muncul, coba server atau kualitas lain.</span></p>
+      <p aria-live="polite"><WatchIcon name="skip" /><span>{introState.status === "demo" ? "Video contoh tidak memiliki data intro." : introState.status === "waiting" ? "Durasi video diperlukan untuk mencari intro." : introState.status === "loading" ? "Mencocokkan intro dengan episode dan durasi video…" : intro ? <>Intro dari <a href="https://aniskip.com/" target="_blank" rel="noreferrer">AniSkip</a> dicocokkan dengan episode dan durasi. Data komunitas dapat berbeda antarversi video.</> : "Intro belum tersedia atau tidak cocok untuk episode dan versi video ini."}</span></p>
     </div>
   </div>;
 }

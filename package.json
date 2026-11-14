@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test"
+    "test": "node --test",
+    "test:watch-ui": "node scripts/watch-ui-check.mjs"
   },
   "dependencies": {
     "hls.js": "1.7.4",
@@ -24,6 +25,7 @@
     "@tailwindcss/postcss": "4.3.5",
     "eslint": "10.15.0",
     "globals": "17.14.0",
+    "playwright-core": "1.65.1",
     "postcss": "8.5.33",
     "tailwindcss": "4.3.5"
   },

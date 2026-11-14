@@ -1,0 +1,117 @@
+name: Verify AnimeIn UI on production
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install browser tools
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.65.1
+          if ! command -v google-chrome >/dev/null; then npx playwright install --with-deps chromium; fi
+      - name: Check real AnimeIn data and UI
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import { existsSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const base = 'https://nihnime.vercel.app';
+          const fail = (error) => {
+            console.log(`::error::${String(error?.stack || error).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A').slice(0, 2500)}`);
+            process.exit(1);
+          };
+          process.on('uncaughtException', fail);
+          process.on('unhandledRejection', fail);
+          const getData = async (path) => {
+            const response = await fetch(base + path, { signal: AbortSignal.timeout(60000) });
+            const body = await response.json();
+            if (!response.ok || body.status !== 200) throw new Error(`${path}: ${body.message || response.status}`);
+            return body.data;
+          };
+          const detail = await getData('/api/detail/6483');
+          assert.equal(detail.title, 'Kusuriya no Hitorigoto 3rd Season');
+          assert.ok(detail.episode_detail?.id && detail.episodes?.length);
+          const exe = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].find(existsSync);
+          const browser = await chromium.launch({ headless: true, ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox'] });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: 'light' });
+          const requests = [], errors = [];
+          page.on('request', (request) => { const url = new URL(request.url()); if (url.origin === base && url.pathname.startsWith('/api/')) requests.push(url.pathname + url.search); });
+          page.on('pageerror', (error) => errors.push(error.message));
+
+          await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.getByRole('heading', { name: 'Sedang Hangat', exact: true }).waitFor({ timeout: 90000 });
+          await page.getByRole('heading', { name: 'Paling Populer', exact: true }).waitFor();
+          assert.ok(await page.locator('a[href="/pilihan/sedang-hangat"]').count());
+          assert.ok(await page.locator('.anime1-item-img').count());
+          console.log('::notice::Beranda: episode terbaru dan pilihan AnimeIn tampil.');
+
+          requests.length = 0;
+          await page.goto(base + '/schedule?day=JUMAT', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.locator('button[aria-pressed="true"]').filter({ hasText: 'Jumat' }).waitFor({ timeout: 60000 });
+          await page.locator('.anime2-item-img').first().waitFor({ timeout: 90000 });
+          assert.ok(requests.some((url) => url === '/api/schedule?day=JUMAT'));
+          assert.ok(!requests.some((url) => url.includes('day=SEMUA')));
+          await page.getByRole('button', { name: 'Senin', exact: true }).click();
+          await page.waitForFunction(() => document.querySelector('button[aria-pressed="true"]')?.textContent === 'Senin');
+          await page.waitForResponse((response) => response.url().includes('/api/schedule?day=SENIN') && response.ok(), { timeout: 90000 });
+          console.log('::notice::Jadwal: hari Jumat dan Senin dimuat terpisah, tanpa mengambil semua hari.');
+
+          await page.goto(base + '/anime/6483', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.getByRole('heading', { name: detail.title, exact: true }).waitFor({ timeout: 90000 });
+          assert.equal(await page.getByRole('link', { name: 'Tonton', exact: true }).getAttribute('href'), `/episode/${detail.episode_detail.id}?anime=6483`);
+          if (String(detail.episodes[0].id) !== String(detail.episode_detail.id)) {
+            assert.equal(await page.getByRole('link', { name: 'Episode Terbaru', exact: true }).first().getAttribute('href'), `/episode/${detail.episodes[0].id}?anime=6483`);
+          }
+          assert.equal(await page.getByText('N/A', { exact: true }).count(), 0);
+          assert.ok(await page.getByRole('heading', { name: 'Season / Sekuel Terkait' }).count());
+          console.log(`::notice::Detail: episode awal ${detail.episode_detail.id}, episode terbaru ${detail.episodes[0].id}; season terkait tersedia.`);
+
+          await page.goto(base + '/genres', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.getByRole('heading', { name: 'Demografi', exact: true }).waitFor({ timeout: 90000 });
+          assert.ok(await page.getByRole('heading', { name: 'Tema', exact: true }).count());
+          console.log('::notice::Kategori genre, tema dan demografi tampil.');
+
+          requests.length = 0;
+          await page.goto(base + '/completed', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.locator('.anime2-item-img').first().waitFor({ timeout: 120000 });
+          const labels = await page.locator('.anime2-item-status').allTextContents();
+          assert.ok(labels.length && labels.every((label) => label.trim() === 'Selesai'));
+          assert.equal(await page.locator('.anime2-item-score').count(), 0);
+          const targets = [
+            { title: 'Black Clover', year: '2017', id: '13209', original: 'fca4ddad225cd825c608245c1f34f57b.jpg' },
+            { title: 'Naruto: Shippuuden', year: '2007', id: '1555', original: '32cbcdb1e524a1fb52273c0c95c98ffc.jpg' },
+            { title: 'Boruto: Naruto Next Generations', year: '2017', id: '13051', original: 'bb01370dba6241974cd7595a99a8afde.jpg' },
+          ];
+          for (const target of targets) await page.getByRole('img', { name: target.title, exact: true }).scrollIntoViewIfNeeded({ timeout: 30000 });
+          await page.waitForFunction((entries) => entries.every((entry) => {
+            const img = [...document.querySelectorAll('.anime2-item-img')].find((el) => el.alt === entry.title);
+            if (!img?.complete || !img.naturalWidth || !img.currentSrc) return false;
+            const url = new URL(img.currentSrc);
+            return (url.hostname === 'media.kitsu.app' && url.pathname.includes(`/${entry.id}/`)) || url.pathname.endsWith(entry.original);
+          }), targets, { timeout: 90000 });
+          const posterUrls = await page.locator('.anime2-item-img').evaluateAll((images, entries) => entries.map((entry) => images.find((img) => img.alt === entry.title).currentSrc), targets);
+          assert.equal(new Set(posterUrls).size, 3);
+          console.log(`::notice::Completed: ${labels.length} status sesuai; tiga poster tetap berbeda dan sesuai judul.`);
+
+          await page.goto(base + '/episode/322056?anime=6483', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.locator('#servers option').first().waitFor({ timeout: 90000 });
+          assert.ok(await page.locator('#servers option').count() > 0);
+          assert.equal(await page.getByRole('heading', { name: 'Link Download', exact: true }).count(), 0);
+          console.log('::notice::Pilihan server tersedia. Pemutaran video nyata tidak diklaim oleh pengujian ini.');
+
+          await page.setViewportSize({ width: 390, height: 900 });
+          await page.goto(base + '/schedule?day=JUMAT', { waitUntil: 'domcontentloaded', timeout: 60000 });
+          await page.getByRole('heading', { name: 'Jadwal Rilis', exact: true }).waitFor();
+          const widths = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+          assert.equal(widths.scroll, widths.client);
+          assert.deepEqual(errors, []);
+          console.log('::notice::Tampilan mobile tidak melebar horizontal; tidak ada error JavaScript.');
+          await browser.close();
+          JS

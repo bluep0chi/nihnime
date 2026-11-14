@@ -96,7 +96,7 @@ try {
   assert.equal(await page.locator(".watch-heading svg, .watch-credit-brand").count(), 0);
   const brand = page.locator(".ni-player-brand");
   assert.equal(await brand.count(), 1, "the NIHNIME branding is inside the player");
-  assert.match(await brand.innerText(), /NIHNIME\s+PLAYER/);
+  assert.equal((await brand.innerText()).trim(), "NIHNIME", "the logo is labeled NIHNIME without PLAYER");
   assert.equal(await brand.locator("img").getAttribute("src"), "/images/logo.png");
   await page.waitForFunction(() => document.querySelector(".ni-player-brand img")?.naturalWidth > 0);
   assert.equal(await page.getByText("Dihadirkan oleh", { exact: false }).count(), 1);

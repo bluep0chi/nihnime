@@ -268,7 +268,7 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
           try { localStorage.setItem("nihnime:player-volume", String(video.volume)); localStorage.setItem("nihnime:player-muted", String(video.muted)); } catch { /* Optional preference. */ }
         }} onRateChange={(event) => setSpeed(event.currentTarget.playbackRate)} />
       <div className="ni-player-top" aria-hidden="true">
-        <span className="ni-player-brand"><img src="/images/logo.png" width="28" height="28" alt="" /><span>NIHNIME <strong>PLAYER</strong></span></span>
+        <span className="ni-player-brand"><img src="/images/logo.png" width="28" height="28" alt="" /><span>NIHNIME</span></span>
         <span className="ni-player-source"><WatchIcon name="server" /><span>{serverLabel}</span></span>
       </div>
       {!playing && !waiting && <button type="button" className="ni-player-center" aria-label="Putar video" onClick={togglePlay}><Icon name="play" /></button>}

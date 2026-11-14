@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { HOME_SECTIONS } from "@/lib/sections.mjs";
 import ContinueWatching from "@/components/continue-watching";
+import RandomAnime from "@/components/random-anime";
 import { AlphabetChips, Breadcrumb, BrowseLinks, Carousel, Columns, Content, DemoNotice, ErrorBox, GenreChips, Loading, PosterGrid, Sidebar, SquareGrid, WidgetTitle, chipClass } from "@/components/ui";
 
 export default function HomePage() {
@@ -21,7 +22,7 @@ export default function HomePage() {
     api("/api/years").then((result) => { if (active) setYears(result); }).catch(() => { if (active) setYears([]); });
     return () => { active = false; };
   }, [attempt]);
-  if (error) return <ErrorBox message={error} onRetry={() => setAttempt((n) => n + 1)} />;
+  if (error) return <><Breadcrumb /><Columns><Content><RandomAnime /><ContinueWatching /><ErrorBox message={error} onRetry={() => setAttempt((n) => n + 1)} /></Content></Columns></>;
   if (!data) return <Loading />;
   const recent = (data.episode_baru || []).slice(0, 8);
   const seen = new Set();
@@ -34,6 +35,6 @@ export default function HomePage() {
     {data.demo && <DemoNotice />}
     <Carousel items={recent.slice(0, 5)} />
     <Breadcrumb />
-    <Columns><Content><ContinueWatching /><WidgetTitle title="Episode Terbaru" href="/recent" />{recent.length ? <SquareGrid items={recent} /> : <p className="text-sm text-zinc-500">Belum ada episode terbaru.</p>}<WidgetTitle title="Anime Selesai" href="/completed" />{completed.length ? <SquareGrid items={completed} completed /> : <p className="text-sm text-zinc-500">Belum ada anime selesai yang ditampilkan.</p>}{Object.entries(HOME_SECTIONS).map(([slug, { title, key }]) => data[key]?.length ? <div key={key} className="flex flex-col gap-4"><WidgetTitle title={title} href={`/pilihan/${slug}`} /><PosterGrid items={data[key].slice(0, 4)} /></div> : null)}</Content><Sidebar><WidgetTitle title="Tahun" href="/jelajahi" /><div className="flex flex-wrap gap-2 mb-6 max-h-60 overflow-y-auto pr-1 custom-scrollbar">{years === null ? <span className="text-sm text-zinc-500">Memuat...</span> : years.length ? years.map((year) => <Link key={year.name} href={`/daftar?mode=year&year=${encodeURIComponent(year.name)}&title=${encodeURIComponent(`Tahun ${year.name}`)}`} className={chipClass}>{year.name === "UNKNOWN" ? "Tidak diketahui" : year.name}</Link>) : <span className="text-sm text-zinc-500">Tahun tidak tersedia.</span>}</div><WidgetTitle title="Daftar Genre" href="/genres" />{genres === null ? <p className="mb-6 text-sm text-zinc-500">Memuat...</p> : genres.length ? <GenreChips genres={genres} className="mb-6 max-h-60 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="mb-6 text-sm text-zinc-500">Genre tidak tersedia.</p>}<WidgetTitle title="A-Z List" /><AlphabetChips /><WidgetTitle title="Jelajahi" /><BrowseLinks /></Sidebar></Columns>
+    <Columns><Content><RandomAnime /><ContinueWatching /><WidgetTitle title="Episode Terbaru" href="/recent" />{recent.length ? <SquareGrid items={recent} /> : <p className="text-sm text-zinc-500">Belum ada episode terbaru.</p>}<WidgetTitle title="Anime Selesai" href="/completed" />{completed.length ? <SquareGrid items={completed} completed /> : <p className="text-sm text-zinc-500">Belum ada anime selesai yang ditampilkan.</p>}{Object.entries(HOME_SECTIONS).map(([slug, { title, key }]) => data[key]?.length ? <div key={key} className="flex flex-col gap-4"><WidgetTitle title={title} href={`/pilihan/${slug}`} /><PosterGrid items={data[key].slice(0, 4)} /></div> : null)}</Content><Sidebar><WidgetTitle title="Tahun" href="/jelajahi" /><div className="flex flex-wrap gap-2 mb-6 max-h-60 overflow-y-auto pr-1 custom-scrollbar">{years === null ? <span className="text-sm text-zinc-500">Memuat...</span> : years.length ? years.map((year) => <Link key={year.name} href={`/daftar?mode=year&year=${encodeURIComponent(year.name)}&title=${encodeURIComponent(`Tahun ${year.name}`)}`} className={chipClass}>{year.name === "UNKNOWN" ? "Tidak diketahui" : year.name}</Link>) : <span className="text-sm text-zinc-500">Tahun tidak tersedia.</span>}</div><WidgetTitle title="Daftar Genre" href="/genres" />{genres === null ? <p className="mb-6 text-sm text-zinc-500">Memuat...</p> : genres.length ? <GenreChips genres={genres} className="mb-6 max-h-60 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="mb-6 text-sm text-zinc-500">Genre tidak tersedia.</p>}<WidgetTitle title="A-Z List" /><AlphabetChips /><WidgetTitle title="Jelajahi" /><BrowseLinks /></Sidebar></Columns>
   </>;
 }

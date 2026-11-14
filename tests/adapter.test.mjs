@@ -17,6 +17,7 @@ test("AnimeIn adapter maps real-shaped home, search, detail, pagination and stre
     if (url.pathname === "/3/2/explore/movie_year") return payload({ movie: [{ id: "8", title: "Winter Anime", status: "FINISHED" }] });
     if (url.pathname === "/3/2/schedule/data") return payload({ movie: [{ id: "9", title: "Scheduled Anime", status: "ONGOING", time: "tunda", key_time: "2026-11-13 10:00:00" }] });
     if (url.pathname === "/3/2/home/hot") return payload({ movie: [{ id: "10", title: "Hot Anime", status: "ONGOING" }] });
+    if (url.pathname === "/3/2/home/random") return payload({ movie: [{ id: "11", title: "Random Anime", image_poster: "/random.jpg", genre: "Adventure", status: "FINISHED" }] });
     if (url.pathname === "/3/2/movie/detail/341") return payload({ movie: { id: "341", title: "Naruto", genre: "Action", status: "FINISHED" }, episode: { id: "1", index: "1", title: "Episode 1", image: "/episode.jpg" }, season: [] });
     if (url.pathname === "/3/2/movie/episode/341") {
       const page = Number(url.searchParams.get("page") || 0);
@@ -48,6 +49,9 @@ test("AnimeIn adapter maps real-shaped home, search, detail, pagination and stre
     assert.equal(calls.filter((entry) => entry.url.pathname === "/3/2/schedule/data").length, 1);
     assert.equal((await adapter.getHomeSection("sedang_hangat", { limit: 31 }))[0].title, "Hot Anime");
     assert.equal(calls.find((entry) => entry.url.pathname === "/3/2/home/hot").url.searchParams.get("limit"), "31");
+    const random = await adapter.getHomeSection("acak", { limit: 100 });
+    assert.deepEqual(random.map(({ id, title, genre, image_poster }) => ({ id, title, genre, image_poster })), [{ id: "11", title: "Random Anime", genre: "Adventure", image_poster: "https://api.animein.net/random.jpg" }]);
+    assert.equal(calls.find((entry) => entry.url.pathname === "/3/2/home/random").url.searchParams.get("limit"), "100");
     const detail = await adapter.getDetail("341");
     assert.equal(detail.episodes.length, 30);
     assert.equal(detail.episode_total, null);

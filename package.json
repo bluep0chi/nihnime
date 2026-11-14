@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "node --test",
-    "test:watch-ui": "node scripts/watch-ui-check.mjs"
+    "test:watch-ui": "node scripts/watch-ui-check.mjs",
+    "test:random-ui": "node scripts/random-ui-check.mjs"
   },
   "dependencies": {
     "hls.js": "1.7.4",

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { demoDetail, demoEpisodes, demoHome, demoList, demoStream } from "../lib/demo.js";
+import { demoDetail, demoEpisodes, demoHome, demoList, demoSchedule, demoStream } from "../lib/demo.js";
 
 test("demo uses explicit IDs, coherent episodes and a clearly marked sample", () => {
   const home = demoHome();
@@ -24,6 +24,7 @@ test("demo uses explicit IDs, coherent episodes and a clearly marked sample", ()
 test("demo listing supports search, pagination and known filters", () => {
   assert.deepEqual(demoList({ keyword: "naruto" }).map((item) => item.id), ["demo-1"]);
   assert.equal(demoList({ page: 1 }).length, 0);
+  assert.notEqual(demoSchedule("SENIN").SENIN[0].id, demoSchedule("SELASA").SELASA[0].id);
   assert.ok(demoList({ id_genre: "1" }).every((item) => item.genre.includes("Action")));
   assert.ok(demoList({ mode: "year", year: "2024" }).every((item) => item.year === 2024));
 });

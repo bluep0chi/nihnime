@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fallbackArtwork } from "@/lib/artwork-client";
 import { artworkYear } from "@/lib/artwork-utils.mjs";
+import { hasText, scoreLabel, statusLabel } from "@/lib/display.mjs";
 
 export const DONATION_URL = "https://sociabuzz.com/molinime/tribe";
 export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -42,8 +43,15 @@ export function GenreChips({ genres = [], className = "" }) {
 export function AlphabetChips({ current }) {
   return <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">{alphabetItems.map((item) => <Link key={item} href={`/az-list/${item}`} aria-current={item === current ? "page" : undefined} className={`w-8 h-8 flex items-center justify-center text-sm font-bold rounded hover:bg-sky-600 hover:text-white transition-colors ${item === current ? "bg-sky-700 text-white" : "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-sky-600"}`}>{item}</Link>)}</div>;
 }
-export function GenericSidebar() { return <Sidebar><WidgetTitle title="Sidebar" /></Sidebar>; }
-export function GenreSidebar({ genres = [] }) { return <Sidebar><WidgetTitle title="Daftar Genre" href="/genres" />{genres.length ? <GenreChips genres={genres} className="mb-6 max-h-64 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="text-sm text-zinc-500">Genre belum tersedia.</p>}<WidgetTitle title="Sidebar" /></Sidebar>; }
+const browseLinks = [
+  ["Episode Terbaru", "/recent"], ["Jadwal Rilis", "/schedule"], ["Jelajahi", "/jelajahi"],
+  ["Semua Anime", "/anime"], ["Bookmark", "/bookmark"], ["Riwayat", "/history"],
+];
+export function BrowseLinks() {
+  return <nav aria-label="Menu anime" className="flex flex-wrap gap-2 mb-2">{browseLinks.map(([title, href]) => <Link key={href} href={href} className={chipClass}>{title}</Link>)}</nav>;
+}
+export function GenericSidebar() { return <Sidebar><WidgetTitle title="Jelajahi" /><BrowseLinks /><WidgetTitle title="A-Z List" /><AlphabetChips /></Sidebar>; }
+export function GenreSidebar({ genres = [] }) { return <Sidebar><WidgetTitle title="Daftar Genre" href="/genres" />{genres.length ? <GenreChips genres={genres} className="mb-6 max-h-64 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="text-sm text-zinc-500">Genre belum tersedia.</p>}<WidgetTitle title="Jelajahi" /><BrowseLinks /></Sidebar>; }
 
 export function Poster({ src, alt, airedStart, kind = "poster", className, loading = "lazy" }) {
   const [fallback, setFallback] = useState(null);
@@ -79,14 +87,23 @@ function episodeLabel(anime) {
   if (anime.episodeIndex != null) return `Ep ${anime.episodeIndex}`;
   return "Episode";
 }
-export function SquareGrid({ items, completed = false, history = false }) {
+function RemoveButton({ label, onClick }) {
+  return <button type="button" onClick={onClick} aria-label={label} title={label} className="absolute z-10 top-1 right-1 flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900/85 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400"><span aria-hidden="true" className="text-xl leading-none">×</span></button>;
+}
+export function SquareGrid({ items, completed = false, history = false, onRemove }) {
   return <div className="py-3 gap-4 grid xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">{items.map((anime, index) => {
     const href = history ? `/episode/${encodeURIComponent(anime.episodeId)}?anime=${encodeURIComponent(anime.animeId || "")}` : completed ? `/anime/${encodeURIComponent(anime.id)}` : `/episode/latest/${encodeURIComponent(anime.id)}`;
-    return <Link href={href} key={`${anime.id || anime.episodeId}-${index}`} className="group relative"><div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={history ? anime.animeTitle : anime.title} airedStart={anime.aired_start} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div><div className="p-2"><h3 className="anime1-item-title">{history ? anime.animeTitle : anime.title}</h3>{history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}</div></Link>;
+    const progress = history && Number(anime.duration) > 0 && Number(anime.progress) > 0 ? Math.min(100, Math.max(0, Math.round(Number(anime.progress) / Number(anime.duration) * 100))) : 0;
+    const title = history ? anime.animeTitle : anime.title;
+    return <div key={`${anime.id || anime.episodeId}-${index}`} className="group relative min-w-0"><Link href={href}><div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={title} airedStart={anime.aired_start} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div><div className="p-2"><h3 className="anime1-item-title">{title}</h3>{history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}{progress > 0 && <div className="mt-2"><progress className="block w-full h-1.5 accent-sky-600" value={progress} max="100" aria-label={`Progres ${title}: ${progress}%`} /><p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">Ditonton {progress}%</p></div>}</div></Link>{onRemove && <RemoveButton label={`Hapus ${title} dari riwayat`} onClick={() => onRemove(anime)} />}</div>;
   })}</div>;
 }
-export function PosterGrid({ items, schedule = false }) {
-  return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">{items.map((anime, index) => <Link key={`${anime.id}-${index}`} href={`/anime/${encodeURIComponent(anime.id)}`} className="group rounded-lg relative"><div className="relative"><Poster className="anime2-item-img" src={anime.image_poster || anime.image_cover} alt={anime.title} airedStart={anime.aired_start} /><span className="anime2-item-type">{anime.type || "ANIME"}</span><span className="anime2-item-score"><StarIcon /><span>{anime.score || "N/A"}</span></span><span className="anime2-item-status">{schedule ? (anime.time || anime.status || "-") : (anime.status || "-")}</span></div><div className="p-2"><h3 className="anime2-item-title">{anime.title}</h3></div></Link>)}</div>;
+export function PosterGrid({ items, schedule = false, showSeason = false, onRemove }) {
+  return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">{items.map((anime, index) => {
+    const score = scoreLabel(anime.score);
+    const footer = schedule && hasText(anime.time) ? anime.time : showSeason && hasText(anime.season) ? anime.season : statusLabel(anime.status);
+    return <div key={`${anime.id}-${index}`} className="group rounded-lg relative min-w-0"><Link href={`/anime/${encodeURIComponent(anime.id)}`}><div className="relative"><Poster className="anime2-item-img" src={anime.image_poster || anime.image_cover} alt={anime.title} airedStart={anime.aired_start} />{hasText(anime.type) && <span className="anime2-item-type">{anime.type}</span>}{score && !onRemove && <span className="anime2-item-score"><StarIcon /><span>{score}</span></span>}{footer && <span className="anime2-item-status">{footer}</span>}</div><div className="p-2"><h3 className="anime2-item-title">{anime.title}</h3></div></Link>{onRemove && <RemoveButton label={`Hapus ${anime.title} dari bookmark`} onClick={() => onRemove(anime)} />}</div>;
+  })}</div>;
 }
 
 export function Carousel({ items }) {

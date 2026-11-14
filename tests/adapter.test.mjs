@@ -15,6 +15,8 @@ test("AnimeIn adapter maps real-shaped home, search, detail, pagination and stre
     const payload = (data) => json({ status: 200, error: false, data });
     if (url.pathname === "/data/home/list") return payload({ update: [{ id: "341", title: "Naruto", image_poster: "/poster.jpg", image_cover: "//example.com/cover.jpg", genre: "Episode 500", key_time_update: "today", views: "1,200" }], hot: [], new: [], today: [], popular: [], waiting: [], random: [], slider: [] });
     if (url.pathname === "/3/2/explore/movie_year") return payload({ movie: [{ id: "8", title: "Winter Anime", status: "FINISHED" }] });
+    if (url.pathname === "/3/2/schedule/data") return payload({ movie: [{ id: "9", title: "Scheduled Anime", status: "ONGOING", time: "tunda", key_time: "2026-11-13 10:00:00" }] });
+    if (url.pathname === "/3/2/home/hot") return payload({ movie: [{ id: "10", title: "Hot Anime", status: "ONGOING" }] });
     if (url.pathname === "/3/2/movie/detail/341") return payload({ movie: { id: "341", title: "Naruto", genre: "Action", status: "FINISHED" }, episode: { id: "1", index: "1", title: "Episode 1", image: "/episode.jpg" }, season: [] });
     if (url.pathname === "/3/2/movie/episode/341") {
       const page = Number(url.searchParams.get("page") || 0);
@@ -39,6 +41,13 @@ test("AnimeIn adapter maps real-shaped home, search, detail, pagination and stre
     assert.equal(listCall.url.searchParams.get("season"), "winter");
     assert.equal(listCall.url.searchParams.get("page"), "2");
     assert.equal(listCall.options.headers["User-Agent"], "okhttp/4.9.3");
+    const schedule = await adapter.getSchedule("SENIN");
+    assert.deepEqual(Object.keys(schedule), ["SENIN"]);
+    assert.equal(schedule.SENIN[0].time, "tunda");
+    assert.equal(schedule.SENIN[0].key_time, "2026-11-13 10:00:00");
+    assert.equal(calls.filter((entry) => entry.url.pathname === "/3/2/schedule/data").length, 1);
+    assert.equal((await adapter.getHomeSection("sedang_hangat", { limit: 31 }))[0].title, "Hot Anime");
+    assert.equal(calls.find((entry) => entry.url.pathname === "/3/2/home/hot").url.searchParams.get("limit"), "31");
     const detail = await adapter.getDetail("341");
     assert.equal(detail.episodes.length, 30);
     assert.equal(detail.episode_total, null);

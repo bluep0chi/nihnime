@@ -232,8 +232,10 @@ body { font-family: var(--font-inter); }
 .watch-episode-option { display: flex; align-items: center; justify-content: space-between; gap: .35rem; min-width: 0; min-height: 2.75rem; padding: .55rem .65rem; border: 1px solid #d4d4d8; border-radius: .45rem; background: #fafafa; color: #3f3f46; font-size: .8rem; font-weight: 600; }
 .watch-episode-option:hover { border-color: #d97706; background: #fffbeb; }
 .watch-episode-option > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-episode-option > .watch-episode-status { display: flex; flex: none; align-items: center; gap: .25rem; overflow: visible; }
 .watch-episode-option.is-current { border-color: #d97706; background: #fffbeb; color: #92400e; }
 .watch-episode-option small { flex: none; color: #b45309; font-size: .65rem; }
+.watch-episode-option small.watch-episode-finished { display: grid; place-items: center; width: 1.15rem; height: 1.15rem; border-radius: 50%; background: #dcfce7; color: #166534; font-size: .8rem; font-weight: 800; line-height: 1; }
 .watch-episodes-message, .watch-episodes-error { font-size: .8rem; line-height: 1.45; }
 .watch-episodes-message { color: #71717a; }
 .watch-episodes-error { color: #b91c1c; }
@@ -248,6 +250,7 @@ body { font-family: var(--font-inter); }
 [data-theme="dark"] .watch-episode-option:hover { border-color: #d97706; background: #3f3f46; }
 [data-theme="dark"] .watch-episode-option.is-current { border-color: #f59e0b; background: #78350f; color: #fef3c7; }
 [data-theme="dark"] .watch-episode-option small, [data-theme="dark"] .watch-episodes-more { color: #fbbf24; }
+[data-theme="dark"] .watch-episode-option small.watch-episode-finished { background: #14532d; color: #bbf7d0; }
 [data-theme="dark"] .watch-episodes-more { border-color: #d97706; }
 [data-theme="dark"] .watch-episodes-more:hover { color: #fff; }
 [data-theme="dark"] .watch-episodes-error { color: #f87171; }
@@ -262,6 +265,7 @@ body { font-family: var(--font-inter); }
   .watch-episode-nav.has-both .watch-episode-next { grid-column: 2; grid-row: 1; }
   .watch-episode-all:only-child { grid-column: 1 / -1; }
   .watch-episode-link { padding-inline: .6rem; }
+  .watch-episode-option > .watch-episode-status.has-both { flex-direction: column; gap: 0; }
 }
 
 /* Pemutar langsung NIHNIME — tetap memakai palet zinc/amber source asli. */

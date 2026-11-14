@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/client";
+import { api, store } from "@/lib/client";
 import { SearchIcon } from "@/components/ui";
 
 const PAGE_SIZE = 30;
@@ -25,7 +25,19 @@ export default function WatchEpisodes({ animeId, currentEpisode }) {
   const [error, setError] = useState("");
   const [failedMore, setFailedMore] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [completedIds, setCompletedIds] = useState(() => new Set());
   const requestRef = useRef(0);
+
+  useEffect(() => {
+    const update = () => {
+      const next = store.completedEpisodeIds();
+      setCompletedIds((previous) => previous.size === next.size && [...previous].every((id) => next.has(id)) ? previous : next);
+    };
+    const unsubscribe = store.subscribe(["history", "watched"], update);
+    window.addEventListener("pageshow", update);
+    update();
+    return () => { unsubscribe(); window.removeEventListener("pageshow", update); };
+  }, []);
 
   useEffect(() => {
     const request = ++requestRef.current;
@@ -77,8 +89,9 @@ export default function WatchEpisodes({ animeId, currentEpisode }) {
     {visible.length > 0 && <ul className="watch-episodes-grid custom-scrollbar" aria-busy={busy} tabIndex={0}>
       {visible.map((episode) => {
         const selected = String(episode.id) === currentId;
+        const finished = completedIds.has(String(episode.id));
         const title = episode.title || `Episode ${episode.index || ""}`;
-        return <li key={String(episode.id)}><Link href={`/episode/${encodeURIComponent(episode.id)}?anime=${encodeURIComponent(animeId)}`} prefetch={false} className={`watch-episode-option${selected ? " is-current" : ""}`} aria-current={selected ? "page" : undefined} title={title}><span>{title}</span>{selected && <small>Diputar</small>}</Link></li>;
+        return <li key={String(episode.id)}><Link href={`/episode/${encodeURIComponent(episode.id)}?anime=${encodeURIComponent(animeId)}`} prefetch={false} className={`watch-episode-option${selected ? " is-current" : ""}`} aria-current={selected ? "page" : undefined} title={title}><span>{title}</span>{(finished || selected) && <span className={`watch-episode-status${finished && selected ? " has-both" : ""}`}>{finished && <small className="watch-episode-finished" role="img" aria-label="Episode selesai" title="Episode selesai">✓</small>}{selected && <small>Diputar</small>}</span>}</Link></li>;
       })}
     </ul>}
     {busy && <p className="watch-episodes-message" role="status">Memuat episode...</p>}

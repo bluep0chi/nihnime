@@ -57,7 +57,9 @@ await page.route("**/api/episodes/**", async (route) => {
   try { return await route.fulfill({ json: { status: 200, data: result } }); }
   catch { /* A new search or navigation may cancel this request. */ }
 });
+await page.route("**/api/home", (route) => route.fulfill({ json: { status: 200, data: { episode_baru: [], paling_populer: [], sedang_hangat: [], judul_baru: [] } } }));
 await page.route("**/api/genres", (route) => route.fulfill({ json: { status: 200, data: [] } }));
+await page.route("**/api/years", (route) => route.fulfill({ json: { status: 200, data: [] } }));
 await page.route("**/api/list?**", (route) => route.fulfill({ json: { status: 200, data: [] } }));
 await page.route("**/api/artwork?**", (route) => route.fulfill({ json: { status: 200, data: null } }));
 await page.route("**/api/intro/**", (route) => {
@@ -84,6 +86,9 @@ const video = () => page.locator("#video-player-video");
 const metadata = () => page.waitForFunction(() => Number.isFinite(document.querySelector("#video-player-video")?.duration) && document.querySelector("#video-player-video").duration > 0);
 
 try {
+  await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "Episode Terbaru" }).waitFor();
+  assert.equal(await page.getByRole("heading", { name: "Lanjut Menonton" }).count(), 0, "the home section is hidden without resumable history");
   await page.goto(`${base}/episode/1002?anime=201`, { waitUntil: "domcontentloaded" });
   await metadata();
   await page.getByText("Intro dari", { exact: false }).waitFor();
@@ -102,6 +107,7 @@ try {
   assert.equal(await page.getByText("Dihadirkan oleh", { exact: false }).count(), 1);
   for (const link of await page.locator(".watch-episode-link").all()) assert.equal(await link.locator("svg").count(), 1, "episode navigation has a visible icon");
   await page.locator(".watch-episode-option.is-current").waitFor();
+  assert.equal(await page.locator(".watch-episode-finished").count(), 0, "opening an episode does not mark it completed");
 
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value; document.documentElement.style.colorScheme = value; }, theme);
@@ -188,6 +194,30 @@ try {
 
   await video().evaluate((element) => { element.currentTime = 17; });
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1002" && item.progress === 17));
+  await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+  const continueLink = page.getByRole("link", { name: "Lanjutkan Anime Uji, Episode 2, dari 00:17" });
+  await continueLink.waitFor();
+  assert.equal(await continueLink.getAttribute("href"), "/episode/1002?anime=201");
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => { document.documentElement.dataset.theme = value; document.documentElement.style.colorScheme = value; }, theme);
+    for (const width of [320, 360, 520, 768, 1200]) {
+      await page.setViewportSize({ width, height: 860 });
+      const layout = await continueLink.evaluate((link) => {
+        const card = link.getBoundingClientRect();
+        const image = link.querySelector("img").getBoundingClientRect();
+        const progress = link.querySelector("progress").getBoundingClientRect();
+        return { scroll: document.documentElement.scrollWidth, width: document.documentElement.clientWidth, card: { left: card.left, right: card.right }, image: { left: image.left, right: image.right }, progress: { left: progress.left, right: progress.right } };
+      });
+      assert.equal(layout.scroll, layout.width, `continue watching does not overflow: ${theme} at ${width}px`);
+      assert.ok(layout.image.left >= layout.card.left && layout.progress.right <= layout.card.right && layout.image.right <= layout.progress.left, `continue card content fits: ${theme} at ${width}px`);
+    }
+  }
+  await page.setViewportSize({ width: 320, height: 860 });
+  await continueLink.tap();
+  await page.waitForURL("**/episode/1002?anime=201");
+  await metadata();
+  await page.waitForFunction(() => Math.abs(document.querySelector("#video-player-video").currentTime - 17) < 0.5);
+  console.log("PASS home continues the same episode and timestamp at mobile and desktop sizes");
   await page.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
   await page.getByText("Terakhir di 00:17 / 00:20").waitFor();
   await page.getByText("Ditonton 85%").waitFor();
@@ -254,6 +284,26 @@ try {
   await video().evaluate((element) => { element.currentTime = element.duration - 0.2; return element.play(); });
   await page.waitForFunction(() => document.querySelector("#video-player-video").ended);
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1004" && item.progress >= item.duration));
+  await page.locator(".watch-episode-option.is-current").getByRole("img", { name: "Episode selesai" }).waitFor();
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => { document.documentElement.dataset.theme = value; document.documentElement.style.colorScheme = value; }, theme);
+    for (const width of [320, 360, 520, 600, 768, 1200]) {
+      await page.setViewportSize({ width, height: 860 });
+      const layout = await page.locator(".watch-episode-option.is-current").evaluate((link) => {
+        const title = link.querySelector(":scope > span:first-child");
+        const status = link.querySelector(".watch-episode-status");
+        const titleRect = title.getBoundingClientRect();
+        const statusRect = status.getBoundingClientRect();
+        const cardRect = link.getBoundingClientRect();
+        return { scroll: title.scrollWidth, width: title.clientWidth, titleRight: titleRect.right, statusLeft: statusRect.left, statusRight: statusRect.right, cardRight: cardRect.right };
+      });
+      assert.ok(layout.scroll <= layout.width + 1 && layout.titleRight <= layout.statusLeft && layout.statusRight <= layout.cardRight, `completed current episode label fits: ${theme} at ${width}px`);
+    }
+  }
+  await page.setViewportSize({ width: 320, height: 860 });
+  await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "Episode Terbaru" }).waitFor();
+  assert.equal(await page.getByRole("heading", { name: "Lanjut Menonton" }).count(), 0, "a finished latest episode does not resurrect an older unfinished episode");
   await page.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
   const completed = page.getByRole("link", { name: /Tonton ulang/ });
   await completed.waitFor();
@@ -263,7 +313,29 @@ try {
   await page.waitForURL("**/episode/1004?anime=201");
   await metadata();
   assert.ok(await video().evaluate((element) => element.currentTime) < 1, "a completed video replays from the beginning");
-  console.log("PASS finished videos are marked complete and replay from the beginning");
+  const finishedMark = page.locator(".watch-episode-option.is-current").getByRole("img", { name: "Episode selesai" });
+  await finishedMark.waitFor();
+  await video().evaluate((element) => { element.currentTime = 3; });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1004" && item.progress === 3));
+  assert.equal(await finishedMark.isVisible(), true, "replaying does not erase the completion marker");
+
+  const observer = await context.newPage();
+  observer.on("pageerror", (error) => errors.push(error.message));
+  await observer.route("**/*", (route) => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+  await observer.route("**/api/home", (route) => route.fulfill({ json: { status: 200, data: { episode_baru: [], paling_populer: [], sedang_hangat: [], judul_baru: [] } } }));
+  await observer.route("**/api/genres", (route) => route.fulfill({ json: { status: 200, data: [] } }));
+  await observer.route("**/api/years", (route) => route.fulfill({ json: { status: 200, data: [] } }));
+  await observer.route("**/api/artwork?**", (route) => route.fulfill({ json: { status: 200, data: null } }));
+  await observer.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+  await observer.getByRole("link", { name: "Lanjutkan Anime Uji, Episode 4, dari 00:03" }).waitFor();
+  await video().evaluate((element) => { element.currentTime = 6; });
+  await observer.getByRole("link", { name: "Lanjutkan Anime Uji, Episode 4, dari 00:06" }).waitFor();
+  await observer.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
+  const episodeFourCard = observer.locator('a[href="/episode/1004?anime=201"]').locator("..");
+  await episodeFourCard.getByRole("button", { name: "Hapus Anime Uji dari riwayat" }).click();
+  await finishedMark.waitFor({ state: "detached" });
+  await observer.close();
+  console.log("PASS completion marks persist on replay and update across tabs when history is removed");
 
   await page.setViewportSize({ width: 1200, height: 860 });
   await page.goto(`${base}/episode/1005?anime=201`, { waitUntil: "domcontentloaded" });
@@ -332,13 +404,26 @@ try {
   const beforeClose = await video().evaluate((element) => element.currentTime);
   await page.close();
   const historyPage = await context.newPage();
+  historyPage.on("pageerror", (error) => errors.push(error.message));
   await historyPage.route("**/*", (route) => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
   await historyPage.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
   const savedOnClose = await historyPage.evaluate(() => JSON.parse(localStorage.getItem("nihnime:history")).find((item) => item.episodeId === "1002").progress);
   assert.ok(savedOnClose >= Math.floor(beforeClose), `closing a playing video saves its position: ${beforeClose} -> ${savedOnClose}`);
+  await historyPage.evaluate(() => {
+    localStorage.setItem("nihnime:history", "[]");
+    localStorage.setItem("nihnime:watched", JSON.stringify(["older-than-history"]));
+  });
+  await historyPage.reload({ waitUntil: "domcontentloaded" });
+  const clearAll = historyPage.getByRole("button", { name: "Hapus Semua" });
+  await clearAll.waitFor();
+  let confirmation = "";
+  historyPage.once("dialog", async (dialog) => { confirmation = dialog.message(); await dialog.accept(); });
+  await clearAll.click();
+  assert.match(confirmation, /tanda episode selesai/);
+  assert.deepEqual(await historyPage.evaluate(() => JSON.parse(localStorage.getItem("nihnime:watched"))), [], "clearing history also clears old completion marks");
   assert.deepEqual(errors, [], "no browser runtime errors");
   await historyPage.close();
-  console.log("PASS closing the tab saves playback progress; no browser errors");
+  console.log("PASS closing the tab saves playback; clearing history removes old completion marks; no browser errors");
 } finally {
   await browser.close();
 }

@@ -40,9 +40,9 @@ Tes ini menggunakan respons API dan video lokal berukuran kecil untuk memeriksa 
 
 ## Fitur
 
-- Beranda episode terbaru, anime selesai, serta pilihan Sedang Hangat, Paling Populer, dan Judul Baru dari AnimeIn. Navigasi responsif, pencarian, tema terang/gelap, dan daftar A–Z mengikuti gaya source asli.
+- Beranda episode terbaru, anime selesai, serta pilihan Sedang Hangat, Paling Populer, dan Judul Baru dari AnimeIn. Jika ada progres video langsung, bagian **Lanjut Menonton** menampilkan hingga empat anime dengan episode dan posisi terakhirnya. Navigasi responsif, pencarian, tema terang/gelap, dan daftar A–Z mengikuti gaya source asli.
 - Jelajahi genre, tema, demografi, tahun/season, studio, dan tipe yang tersedia dari penyedia. Jadwal memuat hari yang dipilih saja, dimulai dari hari ini di WIB; tautan `/schedule?day=JUMAT` juga didukung.
-- Detail menampilkan informasi yang tersedia, season terkait, episode awal/terbaru, pencarian dan pemuatan episode bertahap, serta bookmark lokal. Halaman menonton juga menyediakan daftar episode langsung dengan pencarian dan pemuatan bertahap.
+- Detail menampilkan informasi yang tersedia, season terkait, episode awal/terbaru, pencarian dan pemuatan episode bertahap, serta bookmark lokal. Halaman menonton juga menyediakan daftar episode langsung dengan pencarian dan pemuatan bertahap. Tanda centang muncul ketika video langsung suatu episode selesai, dan tetap ada saat episode ditonton ulang.
 - Pemutar video langsung NIHNIME dengan pilihan server/kualitas, putar/jeda, geser waktu, mundur/maju 10 detik, volume, kecepatan, layar penuh, picture-in-picture bila didukung, dan progres lokal. Riwayat menampilkan posisi menit/detik dan membuka kembali episode pada posisi terakhir; video yang selesai dimulai lagi dari awal. HLS memakai dukungan native atau hls.js bila host mengizinkan CORS. Saat area pemutar difokuskan, gunakan Spasi/K untuk putar/jeda, panah kiri/kanan untuk geser, M untuk suara, dan F untuk layar penuh.
 - Tombol **Lewati Intro** muncul hanya selama opening yang memiliki data per episode dan cocok dengan video yang sedang diputar. Waktunya berasal dari kontribusi AniSkip, bukan durasi tetap atau tebakan; identitas season, nomor episode, dan durasi dicocokkan ulang setiap kali berganti server. Pengguna memilih sendiri apakah akan melewatinya.
 - Server `semi`/embed tetap memakai iframe pihak ketiga. NIHNIME tidak dapat mengontrol intro atau menyimpan progresnya. Pesan kegagalan dan tombol muat ulang tersedia untuk video langsung.
@@ -60,6 +60,6 @@ Request ke AnimeIn dilakukan di server melalui `app/api/*` dan `lib/animein.js`,
 - Endpoint katalog tidak menyediakan filter status. Halaman ongoing/completed memeriksa sampai enam halaman upstream per halaman tampilan dan menyimpan posisi untuk halaman berikutnya. Halaman masih bisa sedikit atau kosong jika status yang dicari jarang, dan urutan dapat berubah jika katalog upstream diperbarui.
 - Kategori tahun mengikuti data AnimeIn; kolom `year` dapat menunjukkan tahun pembaruan, bukan tahun mulai tayang. Detail memakai `aired_start`/`aired_end` jika tersedia.
 - Pencarian A–Z menggunakan hasil pencarian substring yang diurutkan upstream, lalu memfilter huruf awal. Ketepatan navigasi halaman bergantung pada konsistensi urutan alfabet dari AnimeIn.
-- Riwayat, bookmark, dan progres disimpan di localStorage perangkat, bukan disinkronkan antarperangkat.
+- Riwayat, bookmark, progres, dan tanda episode selesai disimpan di localStorage browser, bukan disinkronkan antarperangkat. Riwayat menampilkan 60 episode terakhir; tanda selesai tetap tersimpan meskipun entri lama melewati batas itu. Menghapus suatu riwayat ikut menghapus tanda episode tersebut; menghapus semua riwayat juga menghapus semua tanda selesai.
 
 Aplikasi ini tidak menyimpan berkas video. Pastikan penggunaan konten pihak ketiga sesuai hak dan ketentuan yang berlaku.

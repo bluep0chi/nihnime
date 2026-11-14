@@ -55,6 +55,16 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
   const hlsSource = isHlsUrl(src);
   const durationKey = Number.isFinite(duration) && duration > 0 ? duration.toFixed(3) : "";
 
+  const restoreProgress = (video) => {
+    if (resumedRef.current || video.readyState < 1 || !Number.isFinite(video.duration) || video.duration <= 0) return;
+    const progress = store.getProgress(episodeId);
+    resumedRef.current = true;
+    if (progress > 0 && progress < video.duration) {
+      try { video.currentTime = progress; setCurrent(progress); }
+      catch { resumedRef.current = false; } // Retry when the stream becomes seekable.
+    }
+  };
+
   const showControls = useCallback(() => {
     setControlsVisible(true);
     clearTimeout(timerRef.current);
@@ -226,13 +236,9 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
           const video = event.currentTarget;
           setDuration(Number.isFinite(video.duration) ? video.duration : 0);
           readyRef.current?.();
-          if (!resumedRef.current) {
-            resumedRef.current = true;
-            const progress = store.getProgress(episodeId);
-            if (progress > 0 && Number.isFinite(video.duration) && progress < video.duration) { video.currentTime = progress; setCurrent(progress); }
-          }
+          restoreProgress(video);
         }}
-        onDurationChange={(event) => setDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0)}
+        onDurationChange={(event) => { const video = event.currentTarget; setDuration(Number.isFinite(video.duration) ? video.duration : 0); restoreProgress(video); }}
         onTimeUpdate={(event) => {
           const video = event.currentTarget;
           setCurrent(video.currentTime);
@@ -242,17 +248,15 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
         onSeeked={(event) => { if (resumedRef.current) store.saveProgress(episodeId, event.currentTarget.currentTime, event.currentTarget.duration); }}
         onPlay={() => { playingRef.current = true; setPlaying(true); showControls(); }}
         onPause={(event) => { playingRef.current = false; setPlaying(false); setWaiting(false); if (resumedRef.current) store.saveProgress(episodeId, event.currentTarget.currentTime, event.currentTarget.duration); showControls(); }}
-        onWaiting={(event) => { if (!event.currentTarget.paused) setWaiting(true); }} onPlaying={() => setWaiting(false)} onCanPlay={() => setWaiting(false)}
+        onEnded={(event) => { if (resumedRef.current) store.saveProgress(episodeId, event.currentTarget.duration, event.currentTarget.duration); }}
+        onWaiting={(event) => { if (!event.currentTarget.paused) setWaiting(true); }} onPlaying={() => setWaiting(false)} onCanPlay={(event) => { setWaiting(false); restoreProgress(event.currentTarget); }}
         onVolumeChange={(event) => {
           const video = event.currentTarget;
           setVolume(video.volume); setMuted(video.muted);
           if (video.volume > 0) lastVolume.current = video.volume;
           try { localStorage.setItem("nihnime:player-volume", String(video.volume)); localStorage.setItem("nihnime:player-muted", String(video.muted)); } catch { /* Optional preference. */ }
         }} onRateChange={(event) => setSpeed(event.currentTarget.playbackRate)} />
-      <div className="ni-player-top" aria-hidden="true">
-        <span className="ni-player-brand"><img src="/images/logo.png" width="28" height="28" alt="" /><span>NIHNIME <strong>PLAYER</strong></span></span>
-        <span className="ni-player-source"><WatchIcon name="server" /><span>{serverLabel}</span></span>
-      </div>
+      <div className="ni-player-top" aria-hidden="true"><span className="ni-player-source"><WatchIcon name="server" /><span>{serverLabel}</span></span></div>
       {!playing && !waiting && <button type="button" className="ni-player-center" aria-label="Putar video" onClick={togglePlay}><Icon name="play" /></button>}
       {waiting && <div className="ni-player-buffer" role="status" aria-label="Memuat video"><span /></div>}
       {showIntro && <button type="button" className="ni-player-skip" onClick={skipIntro} title="Lewati bagian opening yang tersedia dari AniSkip">Lewati Intro <Icon name="skip" /></button>}

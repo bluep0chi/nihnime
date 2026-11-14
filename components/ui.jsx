@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fallbackArtwork } from "@/lib/artwork-client";
 import { artworkYear } from "@/lib/artwork-utils.mjs";
 import { hasText, scoreLabel, statusLabel } from "@/lib/display.mjs";
+import { formatPlayerTime, resumablePosition } from "@/lib/player.mjs";
 
 export const DONATION_URL = "https://sociabuzz.com/molinime/tribe";
 export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -93,9 +94,25 @@ function RemoveButton({ label, onClick }) {
 export function SquareGrid({ items, completed = false, history = false, onRemove }) {
   return <div className="py-3 gap-4 grid xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">{items.map((anime, index) => {
     const href = history ? `/episode/${encodeURIComponent(anime.episodeId)}?anime=${encodeURIComponent(anime.animeId || "")}` : completed ? `/anime/${encodeURIComponent(anime.id)}` : `/episode/latest/${encodeURIComponent(anime.id)}`;
-    const progress = history && Number(anime.duration) > 0 && Number(anime.progress) > 0 ? Math.min(100, Math.max(0, Math.round(Number(anime.progress) / Number(anime.duration) * 100))) : 0;
-    const title = history ? anime.animeTitle : anime.title;
-    return <div key={`${anime.id || anime.episodeId}-${index}`} className="group relative min-w-0"><Link href={href}><div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={title} airedStart={anime.aired_start} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div><div className="p-2"><h3 className="anime1-item-title">{title}</h3>{history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}{progress > 0 && <div className="mt-2"><progress className="block w-full h-1.5 accent-sky-600" value={progress} max="100" aria-label={`Progres ${title}: ${progress}%`} /><p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">Ditonton {progress}%</p></div>}</div></Link>{onRemove && <RemoveButton label={`Hapus ${title} dari riwayat`} onClick={() => onRemove(anime)} />}</div>;
+    const title = (history ? anime.animeTitle : anime.title) || "Anime";
+    const elapsed = Number(anime.progress);
+    const duration = Number(anime.duration);
+    const hasProgress = history && Number.isFinite(elapsed) && Number.isFinite(duration) && elapsed > 0 && duration > 0;
+    const resume = hasProgress ? resumablePosition(elapsed, duration) : 0;
+    const progress = hasProgress ? Math.min(elapsed >= duration ? 100 : 99, Math.max(0, Math.round(elapsed / duration * 100))) : 0;
+    const action = resume ? `Lanjutkan dari ${formatPlayerTime(resume)}` : hasProgress && elapsed >= duration ? "Tonton ulang" : "Tonton episode";
+    return <div key={`${anime.id || anime.episodeId}-${index}`} className="group relative min-w-0">
+      <Link href={href}>
+        <div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={title} airedStart={anime.aired_start} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div>
+        <div className="p-2">
+          <h3 className="anime1-item-title">{title}</h3>
+          {history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}
+          {hasProgress && <div className="mt-2"><progress className="history-progress" value={progress} max="100" aria-label={`Progres ${title}: ${progress}%`} /><p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">Terakhir di {formatPlayerTime(Math.min(elapsed, duration))} / {formatPlayerTime(duration)}</p><p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">Ditonton {progress}%</p></div>}
+          {history && <span className="mt-2 flex min-h-9 items-center justify-center gap-1 rounded-md bg-amber-700 px-2 py-2 text-center text-xs font-semibold text-white group-hover:bg-amber-800"><PlayIcon />{action}</span>}
+        </div>
+      </Link>
+      {onRemove && <RemoveButton label={`Hapus ${title} dari riwayat`} onClick={() => onRemove(anime)} />}
+    </div>;
   })}</div>;
 }
 export function PosterGrid({ items, schedule = false, showSeason = false, onRemove }) {

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { api, store } from "@/lib/client";
 import { isDirectVideoServer, preferredServerIndex, safeMediaUrl } from "@/lib/player.mjs";
 import VideoPlayer from "@/components/video-player";
+import WatchEpisodes from "@/components/watch-episodes";
 import WatchIcon from "@/components/watch-icon";
 import { Breadcrumb, Columns, Content, DemoNotice, ErrorBox, GenreChips, Loading, Poster, Sidebar, WidgetTitle } from "@/components/ui";
 
@@ -83,10 +84,7 @@ function WatchContent({ id }) {
 
   return <><Breadcrumb items={[{ title: "Episode" }, { title }]} /><Columns><Content>
     {stream.demo && <DemoNotice />}
-    <header className="watch-heading">
-      <span className="watch-heading-icon"><WatchIcon name="play" /></span>
-      <div><p>Sedang ditonton</p><h1>{title}</h1></div>
-    </header>
+    <header className="watch-heading"><h1>{title}</h1></header>
 
     <div className="watch-server-panel">
       <label htmlFor="servers" className="watch-server-label">
@@ -106,19 +104,13 @@ function WatchContent({ id }) {
     {playbackError && <div className="watch-alert" role="alert"><WatchIcon name="warning" /><div>Server video tidak dapat diputar dari jaringan ini. Pilih server lain jika tersedia, atau coba lagi nanti. <button type="button" onClick={() => { setPlaybackError(false); setPlayerAttempt((n) => n + 1); }}><WatchIcon name="reload" /> Muat ulang pemutar</button></div></div>}
     {src && !direct && <div className="watch-embed-note"><WatchIcon name="info" /><p>Pemutar embed berasal dari pihak ketiga; progres dan lewati intro tidak dapat dikendalikan NIHNIME. Jika video tidak muncul, coba server atau kualitas lain.</p></div>}
 
-    <div className="watch-credit">
-      <Link href="/" className="watch-credit-brand" aria-label="Dihadirkan oleh NIHNIME">
-        <img src="/images/logo.png" width="36" height="36" alt="" />
-        <span><small>Dihadirkan oleh</small><strong>NIHNIME</strong></span>
-      </Link>
-      <span className="watch-credit-kind"><WatchIcon name={src && direct ? "play" : src ? "external" : "info"} />{src ? direct ? "NIHNIME Player" : "Pemutar eksternal" : "Server tidak tersedia"}</span>
-    </div>
-
     <nav className={`watch-episode-nav${previous && next ? " has-both" : ""}`} aria-label="Navigasi episode">
       {previous && <Link href={linkEpisode(previous)} className="watch-episode-link" aria-label={`Episode sebelumnya: ${previous.title || `Episode ${previous.index}`}`}><WatchIcon name="previous" /><span><small>Sebelumnya</small><strong>{previous.title || `Episode ${previous.index}`}</strong></span></Link>}
-      {animeId && <Link href={`/anime/${encodeURIComponent(animeId)}`} className="watch-episode-link watch-episode-all" aria-label="Semua Episode"><WatchIcon name="episodes" /><span><small>Semua</small><strong>Episode</strong></span></Link>}
+      {animeId && <a href="#daftar-episode" className="watch-episode-link watch-episode-all" aria-label="Semua Episode"><WatchIcon name="episodes" /><span><small>Semua</small><strong>Episode</strong></span></a>}
       {next && <Link href={linkEpisode(next)} className="watch-episode-link watch-episode-next" aria-label={`Episode selanjutnya: ${next.title || `Episode ${next.index}`}`}><span><small>Selanjutnya</small><strong>{next.title || `Episode ${next.index}`}</strong></span><WatchIcon name="next" /></Link>}
     </nav>
+    {animeId && <WatchEpisodes key={animeId} animeId={animeId} currentEpisode={stream.episode} />}
+    <p className="watch-credit-text">Dihadirkan oleh <Link href="/">NIHNIME</Link>.</p>
   </Content><Sidebar><WidgetTitle title="Daftar Genre" href="/genres" />{genres.length ? <GenreChips genres={genres} className="mb-6 max-h-64 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="mb-6 text-sm text-zinc-500">Genre belum tersedia.</p>}<WidgetTitle title="Anime Movie" href="/daftar?mode=type&type=MOVIE&title=Anime%20Movie" /><div className="flex flex-col gap-8 py-3">{movies.map((movie) => <div className="flex gap-4" key={movie.id}><Link href={`/anime/${encodeURIComponent(movie.id)}`}><Poster src={movie.image_poster} alt={movie.title} airedStart={movie.aired_start} className="anime3-item-img object-cover" /></Link><div className="flex min-w-0 flex-col gap-2"><h3 className="anime3-item-title [overflow-wrap:anywhere]"><Link href={`/anime/${encodeURIComponent(movie.id)}`}>{movie.title}</Link></h3>{movie.genre && movie.genre !== "-" && <div className="text-sm line-clamp-2 [overflow-wrap:anywhere]"><span className="font-bold">Genres : </span>{movie.genre}</div>}{movie.aired_start && <p className="anime3-item-date">{movie.aired_start}</p>}</div></div>)}{!movies.length && <p className="text-sm text-zinc-500">Rekomendasi belum tersedia.</p>}</div></Sidebar></Columns></>;
 }
 export default function Watch({ id }) { return <Suspense fallback={<Loading />}><WatchContent id={id} /></Suspense>; }

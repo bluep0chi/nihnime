@@ -8,8 +8,11 @@ const base = (process.env.WATCH_TEST_BASE_URL || "http://127.0.0.1:3000").replac
 const origin = new URL(base).origin;
 const fixture = await readFile(new URL("../tests/fixtures/watch-sample.mp4", import.meta.url));
 const episode = (number) => ({ id: String(1000 + number), id_movie: "201", index: String(number), title: `Episode ${number}` });
+const allEpisodes = Array.from({ length: 35 }, (_, index) => episode(35 - index));
 let animeTitle = "Anime Uji";
 let noServers = false;
+let failFirstPage = false;
+let failNextPage = false;
 const servers = [
   { server_id: "a", name: "Server A", quality: "720p", type: "direct", url: `${base}/__watch-test__/sample.mp4` },
   { server_id: "b", name: "Embed", quality: "480p", type: "semi", url: `${base}/__watch-test__/embed` },
@@ -37,6 +40,23 @@ await page.route("**/api/stream/**", (route) => {
 await page.route("**/api/detail/**", (route) => route.fulfill({ json: { status: 200, data: {
   id: "201", title: animeTitle, type: "SERIES", episodes: [episode(3), episode(2), episode(1)], seasons: [],
 } } }));
+await page.route("**/api/episodes/**", async (route) => {
+  const url = new URL(route.request().url());
+  const search = (url.searchParams.get("search") || "").toLowerCase();
+  const pageNumber = Number(url.searchParams.get("page") || 0);
+  if ((pageNumber === 0 && failFirstPage) || (pageNumber === 1 && failNextPage)) {
+    failFirstPage = false;
+    failNextPage = false;
+    return route.fulfill({ status: 500, json: { status: 500, message: "Gagal memuat episode" } });
+  }
+  if (search === "1") await new Promise((resolve) => setTimeout(resolve, 1000));
+  const filtered = allEpisodes.filter((item) => item.title.toLowerCase().includes(search));
+  const result = filtered.slice(pageNumber * 30, (pageNumber + 1) * 30);
+  // An upstream update may repeat the final item of the previous page.
+  if (!search && pageNumber === 1 && result.length) result.unshift(filtered[pageNumber * 30 - 1]);
+  try { return await route.fulfill({ json: { status: 200, data: result } }); }
+  catch { /* A new search or navigation may cancel this request. */ }
+});
 await page.route("**/api/genres", (route) => route.fulfill({ json: { status: 200, data: [] } }));
 await page.route("**/api/list?**", (route) => route.fulfill({ json: { status: 200, data: [] } }));
 await page.route("**/api/artwork?**", (route) => route.fulfill({ json: { status: 200, data: null } }));
@@ -68,9 +88,12 @@ try {
   assert.equal(await page.getByRole("button", { name: "Lewati Intro" }).count(), 0, "skip must not appear before the opening");
   await video().evaluate((element) => { element.currentTime = 3; });
   await page.getByRole("button", { name: "Lewati Intro" }).waitFor();
-  assert.equal(await page.getByRole("link", { name: "Dihadirkan oleh NIHNIME" }).count(), 1);
-  assert.equal(await page.locator(".ni-player-brand img").getAttribute("src"), "/images/logo.png");
+  assert.equal(await page.getByText("Sedang ditonton", { exact: true }).count(), 0);
+  assert.equal(await page.locator(".watch-heading svg, .ni-player-brand, .watch-credit-brand").count(), 0);
+  assert.equal(await page.getByText("NIHNIME Player", { exact: true }).count(), 0);
+  assert.equal(await page.getByText("Dihadirkan oleh", { exact: false }).count(), 1);
   for (const link of await page.locator(".watch-episode-link").all()) assert.equal(await link.locator("svg").count(), 1, "episode navigation has a visible icon");
+  await page.locator(".watch-episode-option.is-current").waitFor();
 
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value; document.documentElement.style.colorScheme = value; }, theme);
@@ -84,12 +107,13 @@ try {
         const player = document.querySelector(".ni-player");
         const toolbar = document.querySelector(".ni-player-toolbar");
         const allEpisodes = document.querySelector(".watch-episode-all strong");
+        const currentTitle = document.querySelector(".watch-episode-option.is-current > span");
         const controls = [...toolbar.children].filter((element) => getComputedStyle(element).display !== "none" && element.matches("button, .ni-player-speed-wrap"));
         return {
           scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth,
           toolbarScroll: toolbar.scrollWidth, toolbarWidth: toolbar.clientWidth,
           player: rect(player), controls: controls.map(rect), center: rect(document.querySelector(".ni-player-center")), skip: rect(document.querySelector(".ni-player-skip")),
-          allScroll: allEpisodes.scrollWidth, allWidth: allEpisodes.clientWidth,
+          allScroll: allEpisodes.scrollWidth, allWidth: allEpisodes.clientWidth, currentScroll: currentTitle.scrollWidth, currentWidth: currentTitle.clientWidth,
         };
       });
       const label = `${theme} at ${width}px`;
@@ -97,13 +121,42 @@ try {
       assert.ok(layout.toolbarScroll <= layout.toolbarWidth + 1, `player toolbar clipped: ${label}`);
       assert.ok(layout.controls.every((control) => control.left >= layout.player.left - 1 && control.right <= layout.player.right + 1), `control outside player: ${label}`);
       assert.ok(layout.allScroll <= layout.allWidth + 1, `episode list label clipped: ${label}`);
+      assert.ok(layout.currentScroll <= layout.currentWidth + 1, `current episode label clipped: ${label}`);
       const { center, skip } = layout;
       assert.ok(center.right <= skip.left || center.left >= skip.right || center.bottom <= skip.top || center.top >= skip.bottom, `play and skip overlap: ${label}`);
     }
   }
-  console.log("PASS light/dark layouts at 320–1200px, visible icons, branding, and unobstructed controls");
+  console.log("PASS light/dark layouts at 320–1200px, requested removals, and unobstructed controls");
 
   await page.setViewportSize({ width: 320, height: 860 });
+  await page.getByRole("link", { name: "Semua Episode" }).tap();
+  await page.waitForFunction(() => location.hash === "#daftar-episode");
+  await page.locator('.watch-episodes-grid a[href="/episode/1035?anime=201"]').waitFor();
+  assert.equal(await page.locator('.watch-episodes-grid a[aria-current="page"]').count(), 1, "current episode remains visible even outside the first page");
+  assert.equal(await page.locator(".watch-episode-option").count(), 31);
+  failNextPage = true;
+  await page.getByRole("button", { name: "Muat episode lainnya" }).tap();
+  await page.getByRole("alert").getByText("Gagal memuat episode").waitFor();
+  await page.getByRole("button", { name: "Coba lagi" }).tap();
+  await page.locator('.watch-episodes-grid a[href="/episode/1001?anime=201"]').waitFor();
+  assert.equal(await page.locator(".watch-episode-option").count(), 35, "loading the next page does not duplicate the pinned current episode");
+  const search = page.getByLabel("Cari episode");
+  const slowSearch = page.waitForRequest((request) => request.url().includes("/api/episodes/") && new URL(request.url()).searchParams.get("search") === "1");
+  await search.fill("1");
+  await slowSearch;
+  await search.fill("35");
+  await page.locator('.watch-episodes-grid a[href="/episode/1035?anime=201"]').waitFor();
+  await page.waitForTimeout(1100);
+  assert.equal(await page.locator(".watch-episode-option").count(), 1, "a stale search response must not replace newer results");
+  failFirstPage = true;
+  await search.fill("tidak ada");
+  await page.getByRole("alert").getByText("Gagal memuat episode").waitFor();
+  await page.getByRole("button", { name: "Coba lagi" }).tap();
+  await page.getByText("Episode tidak ditemukan.").waitFor();
+  await search.fill("");
+  await page.locator('.watch-episodes-grid a[href="/episode/1035?anime=201"]').waitFor();
+  console.log("PASS in-page episode list, deduplication, retries, and search races");
+
   await page.locator(".ni-player-center").tap(); // The transparent control gradient must not intercept this tap.
   await page.waitForFunction(() => !document.querySelector("#video-player-video").paused);
   await page.getByRole("button", { name: "Jeda video" }).tap();
@@ -122,6 +175,27 @@ try {
   await page.waitForFunction(() => document.querySelector("#video-player-video").paused);
   console.log("PASS mobile tap, exact intro skip, speed, mute, and keyboard playback");
 
+  await video().evaluate((element) => { element.currentTime = 17; });
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1002" && item.progress === 17));
+  await page.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
+  await page.getByText("Terakhir di 00:17 / 00:20").waitFor();
+  await page.getByText("Ditonton 85%").waitFor();
+  const resumeLink = page.getByRole("link", { name: /Lanjutkan dari 00:17/ });
+  assert.equal(await resumeLink.getAttribute("href"), "/episode/1002?anime=201");
+  await resumeLink.tap();
+  await page.waitForURL("**/episode/1002?anime=201");
+  await metadata();
+  await page.waitForFunction(() => Math.abs(document.querySelector("#video-player-video").currentTime - 17) < 0.5);
+  await page.getByRole("link", { name: "Episode selanjutnya: Episode 3" }).tap();
+  await page.waitForURL("**/episode/1003?anime=201");
+  await metadata();
+  assert.ok(await video().evaluate((element) => element.currentTime) < 1, "another episode does not inherit the previous episode's position");
+  await page.getByRole("link", { name: "Episode sebelumnya: Episode 2" }).tap();
+  await page.waitForURL("**/episode/1002?anime=201");
+  await metadata();
+  await page.waitForFunction(() => Math.abs(document.querySelector("#video-player-video").currentTime - 17) < 0.5);
+  console.log("PASS history returns to the correct episode and timestamp, including the final seconds");
+
   await page.locator("#servers").selectOption("1");
   await page.locator("#video-player-iframe").waitFor();
   assert.equal(await video().count(), 0);
@@ -132,7 +206,6 @@ try {
   });
   assert.equal(embedLayout.scroll, embedLayout.client, "embed does not overflow a 320px screen");
   assert.ok(embedLayout.frame.left >= embedLayout.wrapper.left - 1 && embedLayout.frame.right <= embedLayout.wrapper.right + 1 && embedLayout.frame.top >= embedLayout.wrapper.top - 1 && embedLayout.frame.bottom <= embedLayout.wrapper.bottom + 1, "iframe fits its player wrapper");
-  await page.getByText("Pemutar eksternal", { exact: true }).waitFor();
   await page.getByText("progres dan lewati intro tidak dapat dikendalikan NIHNIME", { exact: false }).waitFor();
   await page.locator("#servers").selectOption("2");
   await page.getByRole("alert").getByText("Server video tidak dapat diputar", { exact: false }).waitFor();
@@ -140,6 +213,7 @@ try {
   await page.getByRole("alert").getByText("Server video tidak dapat diputar", { exact: false }).waitFor();
   await page.locator("#servers").selectOption("0");
   await metadata();
+  await page.waitForFunction(() => Math.abs(document.querySelector("#video-player-video").currentTime - 17) < 0.5);
   await page.getByRole("link", { name: "Episode sebelumnya: Episode 1" }).tap();
   await page.waitForURL("**/episode/1001?**");
   await page.getByRole("link", { name: "Episode selanjutnya: Episode 2" }).waitFor();
@@ -152,13 +226,52 @@ try {
   await page.locator(".watch-empty-player").waitFor();
   await page.getByRole("heading", { name: `${animeTitle} Episode 1` }).waitFor();
   assert.equal(await page.locator("#servers").isDisabled(), true);
-  assert.equal(await page.getByText("Server tidak tersedia", { exact: true }).count(), 1);
+  await page.getByText("Server Tidak Tersedia", { exact: true }).last().waitFor();
   const longTitleLayout = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: document.documentElement.clientWidth }));
   assert.equal(longTitleLayout.scroll, longTitleLayout.width, "long unbroken titles and empty server state do not overflow");
   await page.getByRole("link", { name: "Semua Episode" }).tap();
-  await page.waitForURL("**/anime/201");
+  await page.waitForFunction(() => location.hash === "#daftar-episode");
+  await page.locator('.watch-episodes-grid a[href="/episode/1035?anime=201"]').tap();
+  await page.waitForURL("**/episode/1035?anime=201");
+  console.log("PASS embed limitation, retry, episode navigation, long titles, and empty server");
+
+  animeTitle = "Anime Uji";
+  noServers = false;
+  await page.goto(`${base}/episode/1004?anime=201`, { waitUntil: "domcontentloaded" });
+  await metadata();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1004"));
+  await video().evaluate((element) => { element.currentTime = element.duration - 0.2; return element.play(); });
+  await page.waitForFunction(() => document.querySelector("#video-player-video").ended);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1004" && item.progress >= item.duration));
+  await page.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
+  const completed = page.getByRole("link", { name: /Tonton ulang/ });
+  await completed.waitFor();
+  assert.equal(await completed.getAttribute("href"), "/episode/1004?anime=201");
+  await completed.getByText("Ditonton 100%").waitFor();
+  await completed.tap();
+  await page.waitForURL("**/episode/1004?anime=201");
+  await metadata();
+  assert.ok(await video().evaluate((element) => element.currentTime) < 1, "a completed video replays from the beginning");
+  console.log("PASS finished videos are marked complete and replay from the beginning");
+
+  // Some streams initially expose an unknown duration. A pause/timeupdate in
+  // that state must not overwrite the saved position before duration settles.
+  await page.addInitScript(() => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "duration");
+    Object.defineProperty(HTMLMediaElement.prototype, "duration", {
+      ...descriptor,
+      get() { const value = descriptor.get.call(this); return window.__holdDuration && Number.isFinite(value) && value > 0 ? Infinity : value; },
+    });
+    window.__holdDuration = true;
+  });
+  await page.goto(`${base}/episode/1002?anime=201`, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => document.querySelector("#video-player-video")?.readyState >= 2);
+  await video().evaluate((element) => { element.dispatchEvent(new Event("timeupdate")); element.dispatchEvent(new Event("pause")); });
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("nihnime:history")).find((item) => item.episodeId === "1002").progress), 17, "unknown duration does not erase saved progress");
+  await page.evaluate(() => { window.__holdDuration = false; document.querySelector("#video-player-video").dispatchEvent(new Event("durationchange")); });
+  await page.waitForFunction(() => Math.abs(document.querySelector("#video-player-video").currentTime - 17) < 0.5);
   assert.deepEqual(errors, [], "no browser runtime errors");
-  console.log("PASS embed limitation, retry, episode navigation, long titles, empty server, and no page errors");
+  console.log("PASS delayed-duration streams resume without overwriting progress; no browser errors");
 } finally {
   await browser.close();
 }

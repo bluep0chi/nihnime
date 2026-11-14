@@ -36,14 +36,14 @@ npx playwright-core install chromium
 npm run test:watch-ui
 ```
 
-Tes ini menggunakan respons API dan video lokal berukuran kecil untuk memeriksa tema, tata letak, kontrol sentuh, intro, dan navigasi; tes ini tidak membuktikan ketersediaan video penyedia. Jika server memakai alamat lain, tetapkan `WATCH_TEST_BASE_URL`. Browser Chromium yang sudah ada dapat dipilih lewat `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+Tes ini menggunakan respons API dan video lokal berukuran kecil untuk memeriksa tema, tata letak, kontrol sentuh, intro, daftar episode, serta posisi riwayat dan putar ulang; tes ini tidak membuktikan ketersediaan video penyedia. Jika server memakai alamat lain, tetapkan `WATCH_TEST_BASE_URL`. Browser Chromium yang sudah ada dapat dipilih lewat `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
 
 ## Fitur
 
 - Beranda episode terbaru, anime selesai, serta pilihan Sedang Hangat, Paling Populer, dan Judul Baru dari AnimeIn. Navigasi responsif, pencarian, tema terang/gelap, dan daftar A–Z mengikuti gaya source asli.
 - Jelajahi genre, tema, demografi, tahun/season, studio, dan tipe yang tersedia dari penyedia. Jadwal memuat hari yang dipilih saja, dimulai dari hari ini di WIB; tautan `/schedule?day=JUMAT` juga didukung.
-- Detail menampilkan informasi yang tersedia, season terkait, episode awal/terbaru, pencarian dan pemuatan episode bertahap, serta bookmark lokal.
-- Pemutar video langsung NIHNIME dengan pilihan server/kualitas, putar/jeda, geser waktu, mundur/maju 10 detik, volume, kecepatan, layar penuh, picture-in-picture bila didukung, dan progres lokal. HLS memakai dukungan native atau hls.js bila host mengizinkan CORS. Saat area pemutar difokuskan, gunakan Spasi/K untuk putar/jeda, panah kiri/kanan untuk geser, M untuk suara, dan F untuk layar penuh.
+- Detail menampilkan informasi yang tersedia, season terkait, episode awal/terbaru, pencarian dan pemuatan episode bertahap, serta bookmark lokal. Halaman menonton juga menyediakan daftar episode langsung dengan pencarian dan pemuatan bertahap.
+- Pemutar video langsung NIHNIME dengan pilihan server/kualitas, putar/jeda, geser waktu, mundur/maju 10 detik, volume, kecepatan, layar penuh, picture-in-picture bila didukung, dan progres lokal. Riwayat menampilkan posisi menit/detik dan membuka kembali episode pada posisi terakhir; video yang selesai dimulai lagi dari awal. HLS memakai dukungan native atau hls.js bila host mengizinkan CORS. Saat area pemutar difokuskan, gunakan Spasi/K untuk putar/jeda, panah kiri/kanan untuk geser, M untuk suara, dan F untuk layar penuh.
 - Tombol **Lewati Intro** muncul hanya selama opening yang memiliki data per episode dan cocok dengan video yang sedang diputar. Waktunya berasal dari kontribusi AniSkip, bukan durasi tetap atau tebakan; identitas season, nomor episode, dan durasi dicocokkan ulang setiap kali berganti server. Pengguna memilih sendiri apakah akan melewatinya.
 - Server `semi`/embed tetap memakai iframe pihak ketiga. NIHNIME tidak dapat mengontrol intro atau menyimpan progresnya. Pesan kegagalan dan tombol muat ulang tersedia untuk video langsung.
 - Halaman ongoing, completed, recent, jadwal, kategori, pencarian, history, dan bookmark. Item riwayat atau bookmark dapat dihapus satu per satu. Rute lama `/nonton`, `/jadwal`, dan `/pencarian` tetap didukung.

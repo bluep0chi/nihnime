@@ -14,7 +14,7 @@ let noServers = false;
 let failFirstPage = false;
 let failNextPage = false;
 const servers = [
-  { server_id: "a", name: "Server A", quality: "720p", type: "direct", url: `${base}/__watch-test__/sample.mp4` },
+  { server_id: "a", name: "Server A Dengan Nama Sumber Yang Sangat Panjang", quality: "720p", type: "direct", url: `${base}/__watch-test__/sample.mp4` },
   { server_id: "b", name: "Embed", quality: "480p", type: "semi", url: `${base}/__watch-test__/embed` },
   { server_id: "c", name: "Rusak", quality: "360p", type: "direct", url: `${base}/__watch-test__/broken.mp4` },
 ];
@@ -93,8 +93,12 @@ try {
   await video().evaluate((element) => { element.currentTime = 3; });
   await page.getByRole("button", { name: "Lewati Intro" }).waitFor();
   assert.equal(await page.getByText("Sedang ditonton", { exact: true }).count(), 0);
-  assert.equal(await page.locator(".watch-heading svg, .ni-player-brand, .watch-credit-brand").count(), 0);
-  assert.equal(await page.getByText("NIHNIME Player", { exact: true }).count(), 0);
+  assert.equal(await page.locator(".watch-heading svg, .watch-credit-brand").count(), 0);
+  const brand = page.locator(".ni-player-brand");
+  assert.equal(await brand.count(), 1, "the NIHNIME branding is inside the player");
+  assert.match(await brand.innerText(), /NIHNIME\s+PLAYER/);
+  assert.equal(await brand.locator("img").getAttribute("src"), "/images/logo.png");
+  await page.waitForFunction(() => document.querySelector(".ni-player-brand img")?.naturalWidth > 0);
   assert.equal(await page.getByText("Dihadirkan oleh", { exact: false }).count(), 1);
   for (const link of await page.locator(".watch-episode-link").all()) assert.equal(await link.locator("svg").count(), 1, "episode navigation has a visible icon");
   await page.locator(".watch-episode-option.is-current").waitFor();
@@ -110,13 +114,15 @@ try {
         };
         const player = document.querySelector(".ni-player");
         const toolbar = document.querySelector(".ni-player-toolbar");
+        const brand = document.querySelector(".ni-player-brand");
+        const source = document.querySelector(".ni-player-source");
         const allEpisodes = document.querySelector(".watch-episode-all strong");
         const currentTitle = document.querySelector(".watch-episode-option.is-current > span");
         const controls = [...toolbar.children].filter((element) => getComputedStyle(element).display !== "none" && element.matches("button, .ni-player-speed-wrap"));
         return {
           scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth,
           toolbarScroll: toolbar.scrollWidth, toolbarWidth: toolbar.clientWidth,
-          player: rect(player), controls: controls.map(rect), center: rect(document.querySelector(".ni-player-center")), skip: rect(document.querySelector(".ni-player-skip")),
+          player: rect(player), brand: rect(brand), source: rect(source), controls: controls.map(rect), center: rect(document.querySelector(".ni-player-center")), skip: rect(document.querySelector(".ni-player-skip")),
           allScroll: allEpisodes.scrollWidth, allWidth: allEpisodes.clientWidth, currentScroll: currentTitle.scrollWidth, currentWidth: currentTitle.clientWidth,
         };
       });
@@ -124,13 +130,14 @@ try {
       assert.equal(layout.scrollWidth, layout.clientWidth, `page overflow: ${label}`);
       assert.ok(layout.toolbarScroll <= layout.toolbarWidth + 1, `player toolbar clipped: ${label}`);
       assert.ok(layout.controls.every((control) => control.left >= layout.player.left - 1 && control.right <= layout.player.right + 1), `control outside player: ${label}`);
+      assert.ok(layout.brand.left >= layout.player.left && layout.source.right <= layout.player.right && layout.brand.right <= layout.source.left, `branding and server label overlap: ${label}`);
       assert.ok(layout.allScroll <= layout.allWidth + 1, `episode list label clipped: ${label}`);
       assert.ok(layout.currentScroll <= layout.currentWidth + 1, `current episode label clipped: ${label}`);
       const { center, skip } = layout;
       assert.ok(center.right <= skip.left || center.left >= skip.right || center.bottom <= skip.top || center.top >= skip.bottom, `play and skip overlap: ${label}`);
     }
   }
-  console.log("PASS light/dark layouts at 320–1200px, requested removals, and unobstructed controls");
+  console.log("PASS restored player branding, removed captions, and light/dark layouts at 320–1200px");
 
   await page.setViewportSize({ width: 320, height: 860 });
   await page.getByRole("link", { name: "Semua Episode" }).tap();

@@ -267,7 +267,10 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
           if (video.volume > 0) lastVolume.current = video.volume;
           try { localStorage.setItem("nihnime:player-volume", String(video.volume)); localStorage.setItem("nihnime:player-muted", String(video.muted)); } catch { /* Optional preference. */ }
         }} onRateChange={(event) => setSpeed(event.currentTarget.playbackRate)} />
-      <div className="ni-player-top" aria-hidden="true"><span className="ni-player-source"><WatchIcon name="server" /><span>{serverLabel}</span></span></div>
+      <div className="ni-player-top" aria-hidden="true">
+        <span className="ni-player-brand"><img src="/images/logo.png" width="28" height="28" alt="" /><span>NIHNIME <strong>PLAYER</strong></span></span>
+        <span className="ni-player-source"><WatchIcon name="server" /><span>{serverLabel}</span></span>
+      </div>
       {!playing && !waiting && <button type="button" className="ni-player-center" aria-label="Putar video" onClick={togglePlay}><Icon name="play" /></button>}
       {waiting && <div className="ni-player-buffer" role="status" aria-label="Memuat video"><span /></div>}
       {showIntro && <button type="button" className="ni-player-skip" onClick={skipIntro} title="Lewati bagian opening yang tersedia dari AniSkip">Lewati Intro <Icon name="skip" /></button>}

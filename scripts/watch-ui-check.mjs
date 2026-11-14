@@ -254,6 +254,33 @@ try {
   assert.ok(await video().evaluate((element) => element.currentTime) < 1, "a completed video replays from the beginning");
   console.log("PASS finished videos are marked complete and replay from the beginning");
 
+  await page.setViewportSize({ width: 1200, height: 860 });
+  await page.goto(`${base}/episode/1005?anime=201`, { waitUntil: "domcontentloaded" });
+  await metadata();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("nihnime:history") || "[]").some((item) => item.episodeId === "1005"));
+  await video().evaluate((element) => { element.playbackRate = 2; return element.play(); });
+  await page.waitForFunction(() => document.querySelector("#video-player-video").currentTime > 2.2);
+  const beforeSwitch = await video().evaluate((element) => element.currentTime);
+  await page.locator("#servers").selectOption("1");
+  await page.locator("#video-player-iframe").waitFor();
+  const savedOnSwitch = await page.evaluate(() => JSON.parse(localStorage.getItem("nihnime:history")).find((item) => item.episodeId === "1005").progress);
+  assert.ok(savedOnSwitch >= Math.floor(beforeSwitch), `switching servers saves its position: ${beforeSwitch} -> ${savedOnSwitch}`);
+  await page.locator("#servers").selectOption("0");
+  await metadata();
+  await page.waitForFunction((value) => Math.abs(document.querySelector("#video-player-video").currentTime - value) < 0.5, savedOnSwitch);
+  await video().evaluate((element) => { element.playbackRate = 2; return element.play(); });
+  await page.waitForFunction((value) => document.querySelector("#video-player-video").currentTime > value + 1.2, savedOnSwitch);
+  const beforeNavigation = await video().evaluate((element) => element.currentTime);
+  await page.getByRole("link", { name: "History", exact: true }).first().click();
+  await page.waitForURL("**/history");
+  const savedOnNavigation = await page.evaluate(() => JSON.parse(localStorage.getItem("nihnime:history")).find((item) => item.episodeId === "1005").progress);
+  assert.ok(savedOnNavigation >= Math.floor(beforeNavigation), `leaving a playing video saves its position: ${beforeNavigation} -> ${savedOnNavigation}`);
+  await page.locator('a[href="/episode/1005?anime=201"]').click();
+  await page.waitForURL("**/episode/1005?anime=201");
+  await metadata();
+  await page.waitForFunction((value) => Math.abs(document.querySelector("#video-player-video").currentTime - value) < 0.5, savedOnNavigation);
+  console.log("PASS switching servers and navigating away during playback save the latest position");
+
   // Some streams initially expose an unknown duration. A pause/timeupdate in
   // that state must not overwrite the saved position before duration settles.
   await page.addInitScript(() => {
@@ -270,8 +297,20 @@ try {
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("nihnime:history")).find((item) => item.episodeId === "1002").progress), 17, "unknown duration does not erase saved progress");
   await page.evaluate(() => { window.__holdDuration = false; document.querySelector("#video-player-video").dispatchEvent(new Event("durationchange")); });
   await page.waitForFunction(() => Math.abs(document.querySelector("#video-player-video").currentTime - 17) < 0.5);
+  console.log("PASS delayed-duration streams resume without overwriting progress");
+
+  await video().evaluate((element) => element.play());
+  await page.waitForFunction(() => document.querySelector("#video-player-video").currentTime > 18.2);
+  const beforeClose = await video().evaluate((element) => element.currentTime);
+  await page.close();
+  const historyPage = await context.newPage();
+  await historyPage.route("**/*", (route) => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+  await historyPage.goto(`${base}/history`, { waitUntil: "domcontentloaded" });
+  const savedOnClose = await historyPage.evaluate(() => JSON.parse(localStorage.getItem("nihnime:history")).find((item) => item.episodeId === "1002").progress);
+  assert.ok(savedOnClose >= Math.floor(beforeClose), `closing a playing video saves its position: ${beforeClose} -> ${savedOnClose}`);
   assert.deepEqual(errors, [], "no browser runtime errors");
-  console.log("PASS delayed-duration streams resume without overwriting progress; no browser errors");
+  await historyPage.close();
+  console.log("PASS closing the tab saves playback progress; no browser errors");
 } finally {
   await browser.close();
 }

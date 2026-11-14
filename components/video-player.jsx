@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { store } from "@/lib/client";
 import { formatPlayerTime, isHlsUrl, usableIntro } from "@/lib/player.mjs";
 import WatchIcon from "@/components/watch-icon";
@@ -73,6 +73,14 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
+  // A passive-effect cleanup can run after React has removed the video, when
+  // browsers may already have reset its timeline to zero. Read it before DOM
+  // removal so navigating away while the video is playing keeps its position.
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    return () => { if (video && resumedRef.current) store.saveProgress(episodeId, video.currentTime, video.duration); };
+  }, [episodeId]);
+
   // Native HLS where supported, otherwise use hls.js for direct HLS sources.
   // MP4/WebM URLs remain on the native video element and need no CORS proxy.
   useEffect(() => {
@@ -122,7 +130,6 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
     window.addEventListener("pagehide", save);
     document.addEventListener("visibilitychange", visibility);
     return () => {
-      save();
       document.removeEventListener("fullscreenchange", fullscreenChanged);
       document.removeEventListener("webkitfullscreenchange", fullscreenChanged);
       video.removeEventListener("enterpictureinpicture", pipChanged);

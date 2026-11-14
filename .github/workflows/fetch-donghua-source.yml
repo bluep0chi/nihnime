@@ -58,9 +58,10 @@ jobs:
           await page.locator('.anime2-item-img').first().waitFor({ timeout: 90000 });
           assert.ok(requests.some((url) => url === '/api/schedule?day=JUMAT'));
           assert.ok(!requests.some((url) => url.includes('day=SEMUA')));
+          const monday = page.waitForResponse((response) => response.url().includes('/api/schedule?day=SENIN') && response.ok(), { timeout: 90000 });
           await page.getByRole('button', { name: 'Senin', exact: true }).click();
           await page.waitForFunction(() => document.querySelector('button[aria-pressed="true"]')?.textContent === 'Senin');
-          await page.waitForResponse((response) => response.url().includes('/api/schedule?day=SENIN') && response.ok(), { timeout: 90000 });
+          await monday;
           console.log('::notice::Jadwal: hari Jumat dan Senin dimuat terpisah, tanpa mengambil semua hari.');
 
           await page.goto(base + '/anime/6483', { waitUntil: 'domcontentloaded', timeout: 60000 });

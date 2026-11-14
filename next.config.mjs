@@ -1,5 +1,4 @@
 /** @type {import('next').NextConfig} */
 export default {
   allowedDevOrigins: ["127.0.0.1", "*.e2b.app"],
-  images: { remotePatterns: [{ protocol: "https", hostname: "**" }, { protocol: "http", hostname: "**" }] },
 };

@@ -38,7 +38,9 @@ Mode ini memakai ID `demo-*`, menampilkan pemberitahuan, dan menggunakan video c
 
 Request ke AnimeIn dilakukan di server melalui `app/api/*` dan `lib/animein.js`, termasuk penemuan domain API, User-Agent dari scraper, retry, dan cache. Browser memanggil rute relatif milik aplikasi, sehingga tidak perlu memanggil `localhost` atau API eksternal secara langsung untuk data. Poster dan media tetap dimuat dari penyedia pihak ketiga.
 
-- Ketersediaan judul, poster, server dan pemutaran bergantung pada AnimeIn dan host video; katalog upstream dapat memuat konten selain anime Jepang.
+- Ketersediaan judul, poster, server dan pemutaran bergantung pada AnimeIn dan host video; katalog upstream dapat memuat konten selain anime Jepang. Jika video langsung gagal, pemutar menampilkan pesan untuk mencoba server lain bila tersedia.
+- Jika gambar AnimeIn gagal dimuat, judul dan tahun dikirim ke Kitsu untuk mencari gambar cadangan. Gambar hanya digunakan bila judul dan tahun yang tersedia cocok; jika tidak, placeholder ditampilkan. Layanan dan gambar cadangan juga bergantung pada pihak ketiga.
+- Endpoint episode terbaru hanya menerima batas jumlah, bukan nomor halaman. Halaman recent memuat dan membagi paling banyak 300 hasil terbaru.
 - AnimeIn tidak menyediakan tautan unduhan batch atau skor dalam respons yang digunakan. Halaman `/batch` mengarah ke daftar anime selesai dan skor yang tidak tersedia ditampilkan sebagai `N/A`.
 - Endpoint katalog tidak menyediakan filter status; halaman ongoing/completed memfilter setiap halaman hasil upstream, sehingga sebuah halaman bisa sedikit atau kosong meskipun halaman berikutnya memiliki hasil.
 - Pencarian A–Z menggunakan hasil pencarian substring yang diurutkan upstream, lalu memfilter huruf awal. Ketepatan navigasi halaman bergantung pada konsistensi urutan alfabet dari AnimeIn.

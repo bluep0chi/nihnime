@@ -65,7 +65,7 @@ jobs:
           await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await page.locator('.anime1-item-img').first().scrollIntoViewIfNeeded({ timeout: 45000 });
           await page.waitForFunction(() => [...document.querySelectorAll('.anime1-item-img')].slice(0, 4).some((image) => image.complete && image.naturalWidth && !image.currentSrc.includes('/images/nihnime.jpg')), null, { timeout: 90000 });
-          const posters = await page.locator('.anime1-item-img').evaluateAll((images) => images.slice(0, 4).map((image) => ({ loaded: image.naturalWidth > 0, host: new URL(image.currentSrc).hostname })));
+          const posters = await page.locator('.anime1-item-img').evaluateAll((images) => images.slice(0, 4).map((image) => ({ loaded: image.naturalWidth > 0, host: image.currentSrc ? new URL(image.currentSrc).hostname : null })));
           console.log('::notice::Recent poster checks: ' + JSON.stringify(posters));
           await page.goto(`${base}/episode/${choice.episode.id}?anime=${choice.anime.id}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
           const video = page.locator('video#video-player-video');

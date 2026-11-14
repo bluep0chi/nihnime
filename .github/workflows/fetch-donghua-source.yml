@@ -21,6 +21,12 @@ jobs:
           node --input-type=module <<'JS'
           import { chromium } from 'playwright';
           import { existsSync } from 'node:fs';
+          const reportError = (error) => {
+            console.log(`::error::${String(error?.stack || error).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A').slice(0, 2000)}`);
+            process.exit(1);
+          };
+          process.on('uncaughtException', reportError);
+          process.on('unhandledRejection', reportError);
           const base = 'https://nihnime.vercel.app';
           async function data(path) {
             const res = await fetch(base + path, { signal: AbortSignal.timeout(30000) });
@@ -30,6 +36,7 @@ jobs:
           }
           const home = await data('/api/home');
           if (home.demo || !home.episode_baru?.length) throw new Error('No real recent episodes');
+          console.log(`::notice::Real home loaded with ${home.episode_baru.length} recent titles`);
           let choice;
           for (const anime of home.episode_baru.slice(0, 8)) {
             try {
@@ -44,7 +51,7 @@ jobs:
             } catch (error) { console.log('Candidate unavailable:', error.message); }
           }
           if (!choice) throw new Error('No direct video server among recent episodes');
-          console.log(`Testing ${choice.anime.title}, ${choice.episode.title}`);
+          console.log(`::notice::Testing ${choice.anime.title}, ${choice.episode.title}`);
           const exe = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].find(existsSync);
           const browser = await chromium.launch({ headless: true, ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
           const page = await browser.newPage();
@@ -54,7 +61,7 @@ jobs:
           await page.locator('.anime1-item-img').first().waitFor({ timeout: 45000 });
           await page.waitForFunction(() => [...document.querySelectorAll('.anime1-item-img')].slice(0, 4).every((image) => image.complete), null, { timeout: 30000 });
           const artwork = await page.locator('.anime1-item-img').evaluateAll((images) => images.slice(0, 4).map((image) => ({ loaded: image.naturalWidth > 0, fallback: image.currentSrc.includes('/images/nihnime.jpg') })));
-          console.log('Recent poster checks:', JSON.stringify(artwork));
+          console.log('::notice::Recent poster checks: ' + JSON.stringify(artwork));
           if (!artwork.some((image) => image.loaded && !image.fallback)) throw new Error('No recent poster loaded from its provider');
           await page.goto(`${base}/episode/${choice.episode.id}?anime=${choice.anime.id}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await page.locator('video#video-player-video').waitFor({ timeout: 45000 });

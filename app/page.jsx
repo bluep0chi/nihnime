@@ -6,12 +6,15 @@ import { Flame, Sparkles, CalendarDays, Trophy, Hourglass, Shuffle, Zap, History
 
 export default function HomePage() {
   const [data, setData] = useState(null);
+  const [fyp, setFyp] = useState([]);
   const [err, setErr] = useState("");
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
     setHistory(store.read("history"));
     api("/api/home").then(setData).catch((e) => setErr(e.message));
+    // Just For You (data/home/fyp) — gagal ambil tidak boleh merusak beranda
+    api("/api/fyp").then((d) => setFyp(Array.isArray(d) ? d : d?.items || [])).catch(() => setFyp([]));
   }, []);
 
   if (err) return <ErrorBox message={err} />;
@@ -20,6 +23,13 @@ export default function HomePage() {
   return (
     <div className="fade-up">
       <Hero items={data.banner} />
+      {data.demo && (
+        <div className="max-w-7xl mx-auto px-4 mt-4">
+          <p className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl px-4 py-2.5">
+            Mode demo: API AnimeIn tidak terjangkau dari server ini, jadi ditampilkan data contoh. Di Vercel data asli akan dimuat otomatis.
+          </p>
+        </div>
+      )}
       {history.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 mt-8">
           <h2 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-3"><span className="w-1 h-5 rounded bg-rose-600" /><History size={18} className="text-rose-500" /> Lanjutkan Menonton</h2>

@@ -12,11 +12,10 @@ dilakukan server-side oleh Next.js (Route Handlers di `app/api/*`).
    - Root Directory: `./`
 4. Klik **Deploy**. Selesai dalam ±1 menit, dapat URL `*.vercel.app`.
 
-> Catatan branch: kode aplikasi ada di branch `arena/b7f9fe3e-nihnime`
-> (pull request ke `main` sudah dibuat). Merge PR tersebut dulu supaya
-> `main` berisi aplikasinya, **atau** di Vercel buka
-> **Settings → Git → Production Branch** lalu pilih
-> `arena/b7f9fe3e-nihnime`.
+> Catatan branch: kode aplikasi ada di branch `arena/f27184bc-nihnime`.
+> Merge PR dari branch ini ke `main` dulu supaya `main` berisi aplikasinya,
+> **atau** di Vercel buka **Settings → Git → Production Branch** lalu pilih
+> `arena/f27184bc-nihnime`.
 
 ## Cara 2 — Vercel CLI
 ```bash

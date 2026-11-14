@@ -5,7 +5,13 @@ export const metadata = {
   title: "NIHNIME — Nonton Anime Sub Indo Gratis",
   description: "Streaming anime subtitle Indonesia terbaru: episode baru, jadwal rilis, genre, studio, dan ribuan judul anime sub Indo.",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/favicon.svg" },
+};
+
+export const viewport = {
   themeColor: "#08080d",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }) {

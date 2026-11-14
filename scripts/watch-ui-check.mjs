@@ -63,6 +63,8 @@ await page.route("**/api/artwork?**", (route) => route.fulfill({ json: { status:
 await page.route("**/api/intro/**", (route) => {
   const url = new URL(route.request().url());
   const number = Number(url.pathname.split("/").at(-1)) - 1000;
+  if (number === 6) return route.fulfill({ json: { status: 200, data: null } });
+  if (number === 7) return route.fulfill({ status: 500, json: { status: 500, message: "Intro unavailable" } });
   return route.fulfill({ json: { status: 200, data: {
     source: "AniSkip", episode: number, start: 2, end: 8, episodeLength: Number(url.searchParams.get("duration")),
   } } });
@@ -85,6 +87,8 @@ try {
   await page.goto(`${base}/episode/1002?anime=201`, { waitUntil: "domcontentloaded" });
   await metadata();
   await page.getByText("Intro dari", { exact: false }).waitFor();
+  assert.equal(await page.getByText("Progres video langsung disimpan di browser ini.", { exact: false }).count(), 0);
+  assert.equal(await page.getByText("Intro belum tersedia atau tidak cocok", { exact: false }).count(), 0);
   assert.equal(await page.getByRole("button", { name: "Lewati Intro" }).count(), 0, "skip must not appear before the opening");
   await video().evaluate((element) => { element.currentTime = 3; });
   await page.getByRole("button", { name: "Lewati Intro" }).waitFor();
@@ -280,6 +284,23 @@ try {
   await metadata();
   await page.waitForFunction((value) => Math.abs(document.querySelector("#video-player-video").currentTime - value) < 0.5, savedOnNavigation);
   console.log("PASS switching servers and navigating away during playback save the latest position");
+
+  for (const number of [6, 7]) {
+    const introResponse = page.waitForResponse((response) => new URL(response.url()).pathname === `/api/intro/${1000 + number}`);
+    await page.goto(`${base}/episode/${1000 + number}?anime=201`, { waitUntil: "domcontentloaded" });
+    await metadata();
+    await introResponse;
+    await page.waitForFunction(() => {
+      const live = document.querySelector('.ni-player-block > [aria-live="polite"]');
+      return live && !live.textContent.trim();
+    });
+    assert.equal(await page.getByText("Progres video langsung disimpan di browser ini.", { exact: false }).count(), 0);
+    assert.equal(await page.getByText("Intro belum tersedia atau tidak cocok", { exact: false }).count(), 0);
+    assert.equal(await page.locator('.ni-player-block > [aria-live="polite"]').evaluate((element) => element.getBoundingClientRect().height), 0, "empty intro status leaves no blank space");
+    await video().evaluate((element) => { element.currentTime = 3; });
+    assert.equal(await page.getByRole("button", { name: "Lewati Intro" }).count(), 0, "unavailable intro has no skip button");
+  }
+  console.log("PASS removed captions stay hidden when intro data is missing or the request fails");
 
   // Some streams initially expose an unknown duration. A pause/timeupdate in
   // that state must not overwrite the saved position before duration settles.

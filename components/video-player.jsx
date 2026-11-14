@@ -226,6 +226,10 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
   };
 
   const intro = introState.status === "ready" && usableIntro(introState.data, duration, episodeNumber) ? introState.data : null;
+  const introCaption = introState.status === "demo" ? "Video contoh tidak memiliki data intro."
+    : introState.status === "waiting" ? "Durasi video diperlukan untuk mencari intro."
+    : introState.status === "loading" ? "Mencocokkan intro dengan episode dan durasi video…"
+    : intro ? <>Intro dari <a href="https://aniskip.com/" target="_blank" rel="noreferrer">AniSkip</a> dicocokkan dengan episode dan durasi. Data komunitas dapat berbeda antarversi video.</> : null;
   const showIntro = intro && current >= intro.start && current < intro.end;
   const skipIntro = () => {
     const video = videoRef.current;
@@ -292,9 +296,8 @@ export default function VideoPlayer({ src, poster, title, serverLabel, episodeId
         </div>
       </div>
     </div>
-    <div className="ni-player-caption">
-      <p><WatchIcon name="clock" /><span>Progres video langsung disimpan di browser ini. Jika video tidak muncul, coba server atau kualitas lain.</span></p>
-      <p aria-live="polite"><WatchIcon name="skip" /><span>{introState.status === "demo" ? "Video contoh tidak memiliki data intro." : introState.status === "waiting" ? "Durasi video diperlukan untuk mencari intro." : introState.status === "loading" ? "Mencocokkan intro dengan episode dan durasi video…" : intro ? <>Intro dari <a href="https://aniskip.com/" target="_blank" rel="noreferrer">AniSkip</a> dicocokkan dengan episode dan durasi. Data komunitas dapat berbeda antarversi video.</> : "Intro belum tersedia atau tidak cocok untuk episode dan versi video ini."}</span></p>
+    <div className={introCaption ? "ni-player-caption" : undefined} aria-live="polite">
+      {introCaption && <p><WatchIcon name="skip" /><span>{introCaption}</span></p>}
     </div>
   </div>;
 }

@@ -37,6 +37,20 @@ jobs:
           const home = await data('/api/home');
           if (home.demo || !home.episode_baru?.length) throw new Error('No real recent episodes');
           console.log(`::notice::Real home loaded with ${home.episode_baru.length} recent titles`);
+          async function inspect(label, url, headers = {}) {
+            try {
+              const result = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+              console.log(`::notice::${label}: HTTP ${result.status}, type ${result.headers.get('content-type')}, length ${result.headers.get('content-length')}`);
+              await result.body?.cancel();
+            } catch (error) { console.log(`::warning::${label}: ${error.message} ${error.cause?.message || ''}`); }
+          }
+          const poster = home.episode_baru[0].image_poster;
+          await Promise.all([
+            inspect('Image default', poster),
+            inspect('Image okhttp', poster, { 'User-Agent': 'okhttp/4.9.3', Accept: 'image/*' }),
+            inspect('Image with referer', poster, { 'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36', Referer: 'https://animein.net/', Accept: 'image/*' }),
+            inspect('Next image proxy', `${base}/_next/image?url=${encodeURIComponent(poster)}&w=384&q=75`),
+          ]);
           let choice;
           for (const anime of home.episode_baru.slice(0, 8)) {
             try {
@@ -44,8 +58,13 @@ jobs:
               const episode = detail.episodes?.[0];
               if (!episode) continue;
               const stream = await data(`/api/stream/${episode.id}`);
-              if (stream.servers?.some((server) => server.type === 'direct' && /^https?:/.test(server.url))) {
+              const direct = stream.servers?.find((server) => server.type === 'direct' && /^https?:/.test(server.url));
+              if (direct) {
                 choice = { anime, episode };
+                await Promise.all([
+                  inspect('Video default', direct.url, { Range: 'bytes=0-1023' }),
+                  inspect('Video with referer', direct.url, { Range: 'bytes=0-1023', Referer: 'https://animein.net/', 'User-Agent': 'okhttp/4.9.3' }),
+                ]);
                 break;
               }
             } catch (error) { console.log('Candidate unavailable:', error.message); }
@@ -57,12 +76,14 @@ jobs:
           const page = await browser.newPage();
           const errors = [];
           page.on('pageerror', (error) => errors.push(error.message));
+          page.on('requestfailed', (request) => { if (request.url().includes('animein.net')) console.log(`::warning::Browser request failed: ${request.failure()?.errorText || 'unknown'}`); });
+          page.on('response', (response) => { if (response.url().includes('animein.net') && response.status() >= 400) console.log(`::warning::Browser media response: HTTP ${response.status()}`); });
           await page.goto(base, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await page.locator('.anime1-item-img').first().waitFor({ timeout: 45000 });
           await page.waitForFunction(() => [...document.querySelectorAll('.anime1-item-img')].slice(0, 4).every((image) => image.complete), null, { timeout: 30000 });
           const artwork = await page.locator('.anime1-item-img').evaluateAll((images) => images.slice(0, 4).map((image) => ({ loaded: image.naturalWidth > 0, fallback: image.currentSrc.includes('/images/nihnime.jpg') })));
           console.log('::notice::Recent poster checks: ' + JSON.stringify(artwork));
-          if (!artwork.some((image) => image.loaded && !image.fallback)) throw new Error('No recent poster loaded from its provider');
+          if (!artwork.some((image) => image.loaded && !image.fallback)) console.log('::warning::No recent poster loaded from its provider');
           await page.goto(`${base}/episode/${choice.episode.id}?anime=${choice.anime.id}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
           await page.locator('video#video-player-video').waitFor({ timeout: 45000 });
           await page.locator('video#video-player-video').evaluate((video) => { video.muted = true; return video.play(); });

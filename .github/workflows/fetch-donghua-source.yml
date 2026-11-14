@@ -1,0 +1,51 @@
+name: Fetch Donghua Source (Gofile -> repo)
+
+# Workflow sekali pakai: mengunduh sourcecodeanime.zip dari Gofile
+# (sandbox Arena tidak bisa akses gofile.io, tapi runner GitHub bisa),
+# mengekstraknya ke folder donghua-src/, lalu commit ke branch donghua-src.
+# Dijalankan manual: gh workflow run fetch-donghua-source.yml
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download ZIP dari Gofile
+        run: |
+          set -e
+          python3 -m pip install --quiet requests pathvalidate curl_cffi
+          git clone --depth 1 https://github.com/martadams89/gofile-dl /tmp/gofile-dl
+          cd /tmp/gofile-dl
+          python3 run.py "https://gofile.io/d/GC7DUMRn" -d "$GITHUB_WORKSPACE/downloads"
+          ls -lh "$GITHUB_WORKSPACE/downloads"
+          find "$GITHUB_WORKSPACE/downloads" -type f | head -20
+
+      - name: Ekstrak ZIP ke donghua-src/
+        run: |
+          set -e
+          mkdir -p donghua-src
+          ZIP=$(find downloads -type f -name "*.zip" | head -1)
+          echo "ZIP: $ZIP"
+          python3 -m zipfile -e "$ZIP" donghua-src/
+          find donghua-src -type f | sort | head -100
+          du -sh donghua-src
+
+      - name: Commit & push ke branch donghua-src
+        run: |
+          set -e
+          git config user.name "arena-agent"
+          git config user.email "297053741+arena-agent@users.noreply.github.com"
+          git checkout -B donghua-src
+          git add donghua-src
+          git commit -m "chore: source donghua asli dari sourcecodeanime.zip (untuk rebuild UI 1:1)" || echo "nothing to commit"
+          git push origin donghua-src --force-with-lease
+          echo "OK: branch donghua-src sudah ter-push"

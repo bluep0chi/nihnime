@@ -102,7 +102,7 @@ jobs:
           console.log(`::notice::Completed: ${labels.length} status sesuai; tiga poster tetap berbeda dan sesuai judul.`);
 
           await page.goto(base + '/episode/322056?anime=6483', { waitUntil: 'domcontentloaded', timeout: 60000 });
-          await page.locator('#servers option').first().waitFor({ timeout: 90000 });
+          await page.locator('#servers:not([disabled])').waitFor({ timeout: 90000 });
           assert.ok(await page.locator('#servers option').count() > 0);
           assert.equal(await page.getByRole('heading', { name: 'Link Download', exact: true }).count(), 0);
           console.log('::notice::Pilihan server tersedia. Pemutaran video nyata tidak diklaim oleh pengujian ini.');

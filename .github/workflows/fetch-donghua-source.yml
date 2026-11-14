@@ -1,51 +1,61 @@
-name: Fetch Donghua Source (Gofile -> repo)
-
-# Workflow sekali pakai: mengunduh sourcecodeanime.zip dari Gofile
-# (sandbox Arena tidak bisa akses gofile.io, tapi runner GitHub bisa),
-# mengekstraknya ke folder donghua-src/, lalu commit ke branch donghua-src.
-# Dijalankan manual: gh workflow run fetch-donghua-source.yml
+name: Verify NIHNIME production playback
 on:
   workflow_dispatch:
-
 permissions:
-  contents: write
-
+  contents: read
 jobs:
-  fetch:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
-
-      - name: Download ZIP dari Gofile
+          node-version: 22
+      - name: Install browser test tools
         run: |
-          set -e
-          python3 -m pip install --quiet requests pathvalidate curl_cffi
-          git clone --depth 1 https://github.com/martadams89/gofile-dl /tmp/gofile-dl
-          cd /tmp/gofile-dl
-          python3 run.py "https://gofile.io/d/GC7DUMRn" -d "$GITHUB_WORKSPACE/downloads"
-          ls -lh "$GITHUB_WORKSPACE/downloads"
-          find "$GITHUB_WORKSPACE/downloads" -type f | head -20
-
-      - name: Ekstrak ZIP ke donghua-src/
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.65.1
+          if ! command -v google-chrome >/dev/null; then npx playwright install --with-deps chromium; fi
+      - name: Check real API and playback
         run: |
-          set -e
-          mkdir -p donghua-src
-          ZIP=$(find downloads -type f -name "*.zip" | head -1)
-          echo "ZIP: $ZIP"
-          python3 -m zipfile -e "$ZIP" donghua-src/
-          find donghua-src -type f | sort | head -100
-          du -sh donghua-src
-
-      - name: Commit & push ke branch donghua-src
-        run: |
-          set -e
-          git config user.name "arena-agent"
-          git config user.email "297053741+arena-agent@users.noreply.github.com"
-          git checkout -B donghua-src
-          git add donghua-src
-          git commit -m "chore: source donghua asli dari sourcecodeanime.zip (untuk rebuild UI 1:1)" || echo "nothing to commit"
-          git push origin donghua-src --force-with-lease
-          echo "OK: branch donghua-src sudah ter-push"
+          node --input-type=module <<'JS'
+          import { chromium } from 'playwright';
+          import { existsSync } from 'node:fs';
+          const base = 'https://nihnime.vercel.app';
+          async function data(path) {
+            const res = await fetch(base + path, { signal: AbortSignal.timeout(30000) });
+            const body = await res.json();
+            if (!res.ok || body.status !== 200) throw new Error(`${path}: ${body.message || res.status}`);
+            return body.data;
+          }
+          const home = await data('/api/home');
+          if (home.demo || !home.episode_baru?.length) throw new Error('No real recent episodes');
+          let choice;
+          for (const anime of home.episode_baru.slice(0, 8)) {
+            try {
+              const detail = await data(`/api/detail/${anime.id}`);
+              const episode = detail.episodes?.[0];
+              if (!episode) continue;
+              const stream = await data(`/api/stream/${episode.id}`);
+              if (stream.servers?.some((server) => server.type === 'direct' && /^https?:/.test(server.url))) {
+                choice = { anime, episode };
+                break;
+              }
+            } catch (error) { console.log('Candidate unavailable:', error.message); }
+          }
+          if (!choice) throw new Error('No direct video server among recent episodes');
+          console.log(`Testing ${choice.anime.title}, ${choice.episode.title}`);
+          const exe = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'].find(existsSync);
+          const browser = await chromium.launch({ headless: true, ...(exe ? { executablePath: exe } : {}), args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
+          const page = await browser.newPage();
+          const errors = [];
+          page.on('pageerror', (error) => errors.push(error.message));
+          await page.goto(`${base}/episode/${choice.episode.id}?anime=${choice.anime.id}`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+          await page.locator('video#video-player-video').waitFor({ timeout: 45000 });
+          await page.locator('video#video-player-video').evaluate((video) => { video.muted = true; return video.play(); });
+          await page.waitForFunction(() => document.querySelector('video')?.currentTime > 1, null, { timeout: 45000 });
+          const details = await page.locator('video#video-player-video').evaluate((video) => ({ currentTime: video.currentTime, readyState: video.readyState, width: video.videoWidth, height: video.videoHeight }));
+          if (!details.width || !details.height || errors.length) throw new Error(`Playback or browser error: ${JSON.stringify({ details, errors })}`);
+          console.log('Playback advanced with decoded video:', JSON.stringify(details));
+          await browser.close();
+          JS

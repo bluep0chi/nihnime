@@ -6,7 +6,7 @@ export async function GET(req) {
     const data = await getList({
       mode: p.get("mode") || "search", keyword: p.get("q") || "",
       genre: (p.get("genre") || "").split(",").filter(Boolean),
-      sort: p.get("sort") || "views", page: Number(p.get("page") || 0),
+      sort: p.get("sort") || "views", page: Math.max(0, Math.min(10000, Math.floor(Number(p.get("page")) || 0))),
       id_genre: p.get("id_genre") || "", studio: p.get("studio") || "",
       year: p.get("year") || "", season: p.get("season") || "", type: p.get("type") || "",
     });

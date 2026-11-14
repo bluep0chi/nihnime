@@ -1,51 +1,47 @@
-# NIHNIME — Aplikasi Streaming Anime Sub Indo
+# NIHNIME — Anime Sub Indo
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/bluep0chi/nihnime)
+NIHNIME mengadaptasi tampilan source Astro/donghua yang disediakan ke aplikasi anime berbasis Next.js. Tata letak asli—navbar dan footer, carousel, kartu, sidebar, breadcrumb, detail, daftar episode, serta pemutar—dipertahankan; data diambil melalui adaptor API AnimeIn berdasarkan scraper yang disediakan.
 
-> Panduan deploy lengkap: lihat [DEPLOY.md](DEPLOY.md)
+## Menjalankan
 
-Versi anime dari aplikasi donghua: **UI dipertahankan** (tema gelap, hero banner slider,
-row poster geser, navigasi atas + bottom-nav mobile, halaman detail & player) tapi seluruh
-konten diganti dari donghua menjadi **anime** memakai API AnimeIn, dan di-upgrade ke
-stack terbaru: **Next.js 16.4.6, React 19.3.1, Tailwind CSS 4.3.5, lucide-react 1.72.0, Node ≥20.9**.
+Gunakan Node.js `^20.19`, `^22.13`, atau `>=24`.
 
-## Fitur
-- **Beranda** — banner slider otomatis, Episode Baru, Sedang Hangat, Paling Populer (ranking),
-  Jadwal Hari Ini, Judul Baru, Paling Dinanti, Acak, Just For You, + *Lanjutkan Menonton* dari riwayat lokal
-- **Nonton** — player video bawaan, pilih server/kualitas (360p–1080p), episode Prev/Next,
-  daftar episode, riwayat tontonan tersimpan otomatis
-- **Detail anime** — sinopsis, info studio/tahun/status, cari nomor episode, muat episode
-  bertahap, season/sekuel terkait, tombol Bookmark
-- **Jadwal Rilis** — per hari SENIN–MINGGU + acak
-- **Jelajahi** — Genre / Theme / Demographic (dengan poster), Tipe (Movie/ONA/OVA/Series/…),
-  Tahun, Studio — semua bisa diklik jadi daftar anime berpaginasi
-- **Pencarian** — kata kunci dengan muat-halaman bertahap + saran live di navbar
-- **Bookmark & Riwayat** — tersimpan di localStorage perangkat, resume playback otomatis
-
-## Cara menjalankan
 ```bash
-npm install
-npm run dev        # http://localhost:3000
-# produksi:
-npm run build && npm start
+npm ci
+npm run dev                 # http://localhost:3000
+npm test                    # tes adaptor, A–Z, demo, dan tipe server video
+npm run lint
+npm run build
+npm start
 ```
 
-## Arsitektur data
-Semua request ke API AnimeIn (`xyz-api.animein.net`, domain diambil dinamis dari
-`gate.nextanimelist.com`) dilakukan **di server** lewat Route Handlers di `app/api/*`
-(lib: `lib/animein.js`, diadaptasi 1:1 dari scraper `animein.js` / `AnimeScraper`
-hasil sniff APK ANIMEIN 5.2.2) dengan User-Agent `okhttp/4.9.3` agar tidak kena
-Cloudflare/CORS, retry 3x, plus cache Next.js.
+Stack dipin ke Next.js 16.4.6, React 19.3.1, dan Tailwind CSS 4.3.5. Lihat [DEPLOY.md](DEPLOY.md) untuk deployment.
 
-Endpoint yang dipakai (sesuai scraper):
-`data/home/list`, `data/home/list_new_episode`, `data/home/fyp`, `data/trailer/list`,
-`3/2/home/{hot,new,popular,random}`, `3/2/schedule/data`, `3/2/explore/{data,genre,year}`,
-`3/2/explore/movie{,_genre,_studio,_year,_type}`, `3/2/movie/detail/{id}`,
-`3/2/movie/episode/{id}`, `3/2/episode/streamnew/{id}`.
+### Preview tanpa akses ke AnimeIn
 
-> Mode demo: kalau API tidak terjangkau dari server (mis. sandbox/preview yang
-> outbound-nya dibatasi), app otomatis menampilkan data contoh dari `lib/demo.js`
-> dengan badge kuning — UI tetap bisa dilihat. Di Vercel data asli dimuat normal.
+Mode demo harus **diaktifkan secara eksplisit**, dan seluruh daftar dalam mode ini merupakan contoh, bukan data terkini:
 
-> Catatan: ZIP source donghua asli tidak bisa diunduh dari sandbox build ini
-> (CDN terblokir), jadi UI dibangun ulang mengikuti pola UI aplikasi donghua aslinya.
+```bash
+NIHNIME_DEMO=1 npm run dev
+```
+
+Mode ini memakai ID `demo-*`, menampilkan pemberitahuan, dan menggunakan video contoh. ID anime/episode nyata tidak pernah diam-diam diganti dengan judul atau video demo, bahkan saat mode demo aktif. Tanpa variabel tersebut, kegagalan API ditampilkan sebagai kesalahan yang dapat dicoba ulang.
+
+## Fitur
+
+- Beranda episode terbaru dan anime selesai, navigasi responsif, pencarian, tema terang/gelap, daftar genre, tahun, dan A–Z.
+- Detail anime dengan sinopsis, informasi yang tersedia, pencarian dan pemuatan episode bertahap, serta bookmark lokal.
+- Pemutar dengan pilihan server yang dikelompokkan per kualitas, navigasi episode, riwayat lokal, dan penyimpanan progres untuk video langsung. Server `direct` memakai elemen video; server `semi`/embed memakai iframe.
+- Halaman ongoing, completed, recent, jadwal, genre, tahun/season, studio, tipe, pencarian, history, dan bookmark. Rute lama `/nonton`, `/jadwal`, dan `/pencarian` tetap didukung.
+
+## Data dan batasan
+
+Request ke AnimeIn dilakukan di server melalui `app/api/*` dan `lib/animein.js`, termasuk penemuan domain API, User-Agent dari scraper, retry, dan cache. Browser memanggil rute relatif milik aplikasi, sehingga tidak perlu memanggil `localhost` atau API eksternal secara langsung untuk data. Poster dan media tetap dimuat dari penyedia pihak ketiga.
+
+- Ketersediaan judul, poster, server dan pemutaran bergantung pada AnimeIn dan host video; katalog upstream dapat memuat konten selain anime Jepang.
+- AnimeIn tidak menyediakan tautan unduhan batch atau skor dalam respons yang digunakan. Halaman `/batch` mengarah ke daftar anime selesai dan skor yang tidak tersedia ditampilkan sebagai `N/A`.
+- Endpoint katalog tidak menyediakan filter status; halaman ongoing/completed memfilter setiap halaman hasil upstream, sehingga sebuah halaman bisa sedikit atau kosong meskipun halaman berikutnya memiliki hasil.
+- Pencarian A–Z menggunakan hasil pencarian substring yang diurutkan upstream, lalu memfilter huruf awal. Ketepatan navigasi halaman bergantung pada konsistensi urutan alfabet dari AnimeIn.
+- Riwayat, bookmark, dan progres disimpan di localStorage perangkat, bukan disinkronkan antarperangkat.
+
+Aplikasi ini tidak menyimpan berkas video. Pastikan penggunaan konten pihak ketiga sesuai hak dan ketentuan yang berlaku.

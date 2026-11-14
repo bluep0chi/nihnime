@@ -1,197 +1,80 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, Flame, Play, Bookmark, Search, Home, CalendarDays, LayoutGrid, Clock } from "lucide-react";
-import { formatViews } from "@/lib/client";
+import { useEffect, useState } from "react";
 
-export function Logo() {
-  return (
-    <Link href="/" className="flex items-center gap-2 shrink-0">
-      <span className="grid place-items-center w-8 h-8 rounded-lg bg-rose-600 text-white shadow-lg shadow-rose-600/40"><Play size={16} fill="currentColor" /></span>
-      <span className="font-black text-lg tracking-tight">NIH<span className="text-rose-500">NIME</span></span>
-    </Link>
-  );
+export const DONATION_URL = "https://sociabuzz.com/molinime/tribe";
+export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+export const alphabetItems = ["0-9", ...ALPHABET];
+
+export function PlayIcon() {
+  return <svg className="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" clipRule="evenodd" d="M8.6 5.2A1 1 0 0 0 7 6v12a1 1 0 0 0 1.6.8l8-6a1 1 0 0 0 0-1.6l-8-6Z" /></svg>;
+}
+export function SearchIcon({ className = "w-5 h-5" }) {
+  return <svg className={className} aria-hidden="true" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" strokeLinecap="round" strokeWidth="2" d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" /></svg>;
+}
+export function StarIcon() {
+  return <svg className="w-3 h-3" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M13.849 4.22c-.684-1.626-3.014-1.626-3.698 0L8.397 8.387l-4.552.361c-1.775.14-2.495 2.331-1.142 3.477l3.468 2.937-1.06 4.392c-.413 1.713 1.472 3.067 2.992 2.149L12 19.35l3.897 2.354c1.52.918 3.405-.436 2.992-2.15l-1.06-4.39 3.468-2.938c1.353-1.146.633-3.336-1.142-3.476l-4.552-.361-1.754-4.167Z" /></svg>;
 }
 
-export function Navbar() {
-  const [q, setQ] = useState("");
-  const [sug, setSug] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+export function Breadcrumb({ items = [] }) {
+  return <header className="flex p-3 border border-zinc-300 rounded-lg bg-white dark:bg-zinc-900 dark:border-zinc-800" aria-label="Breadcrumb">
+    <ol className="inline-flex min-w-0 items-center space-x-1 md:space-x-2">
+      <li className="inline-flex items-center"><Link href="/" className="inline-flex items-center text-sm font-medium hover:text-amber-600"><svg className="w-3 h-3 me-2.5" aria-hidden="true" viewBox="0 0 20 20" fill="currentColor"><path d="m19.707 9.293-2-2-7-7a1 1 0 0 0-1.414 0l-7 7-2 2a1 1 0 0 0 1.414 1.414L2 10.414V18a2 2 0 0 0 2 2h3a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h3a2 2 0 0 0 2-2v-7.586l.293.293a1 1 0 0 0 1.414-1.414Z" /></svg>Home</Link></li>
+      {items.map((item, index) => <li key={`${item.title}-${index}`} className="min-w-0" aria-current={index === items.length - 1 ? "page" : undefined}><div className="flex items-center"><svg className="w-3 h-3 mx-1 shrink-0 text-zinc-400" aria-hidden="true" viewBox="0 0 6 10" fill="none"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4" /></svg>{item.href && index !== items.length - 1 ? <Link href={item.href} className="ms-1 text-sm font-medium hover:text-amber-600 md:ms-2">{item.title}</Link> : <span className="ms-1 text-sm font-medium text-zinc-500 md:ms-2 line-clamp-1">{item.title}</span>}</div></li>)}
+    </ol>
+  </header>;
+}
+
+export function Columns({ children }) { return <div className="flex flex-col lg:flex-row gap-4">{children}</div>; }
+export function Content({ children }) { return <div className="min-w-0 flex flex-col gap-4 border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg p-3 md:flex-[3]">{children}</div>; }
+export function Sidebar({ children }) { return <aside className="min-w-0 flex flex-col border border-zinc-300 dark:border-zinc-800 bg-white dark:bg-zinc-900 gap-4 rounded-lg p-3 md:flex-1">{children}</aside>; }
+export function WidgetTitle({ title, href }) {
+  return <><div className="flex justify-between gap-4 flex-wrap"><h2 className="text-lg font-bold line-clamp-2">{title}</h2>{href && <Link href={href} className="text-white bg-amber-700 hover:bg-amber-800 focus:ring-4 focus:outline-none focus:ring-amber-300 font-medium rounded-lg text-xs px-3 py-2 text-center inline-flex items-center dark:bg-amber-600 dark:hover:bg-amber-700">More<svg className="w-3.5 h-3.5 ms-2" aria-hidden="true" viewBox="0 0 14 10" fill="none"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9" /></svg></Link>}</div><hr className="border-zinc-400 dark:border-zinc-600" /></>;
+}
+
+export const chipClass = "text-xs font-medium px-2.5 py-1.5 rounded bg-zinc-200 text-zinc-800 hover:bg-amber-600 hover:text-white dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-amber-600 transition-colors";
+export function GenreChips({ genres = [], className = "" }) {
+  return <div className={`flex flex-wrap gap-2 ${className}`}>{genres.map((g) => <Link key={g.id} href={`/genres/${encodeURIComponent(g.id)}?name=${encodeURIComponent(g.name)}`} className={chipClass}>{g.name}</Link>)}</div>;
+}
+export function AlphabetChips({ current }) {
+  return <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">{alphabetItems.map((item) => <Link key={item} href={`/az-list/${item}`} aria-current={item === current ? "page" : undefined} className={`w-8 h-8 flex items-center justify-center text-sm font-bold rounded hover:bg-sky-600 hover:text-white transition-colors ${item === current ? "bg-sky-700 text-white" : "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-sky-600"}`}>{item}</Link>)}</div>;
+}
+export function GenericSidebar() { return <Sidebar><WidgetTitle title="Sidebar" /></Sidebar>; }
+export function GenreSidebar({ genres = [] }) { return <Sidebar><WidgetTitle title="Daftar Genre" href="/genres" />{genres.length ? <GenreChips genres={genres} className="mb-6 max-h-64 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="text-sm text-zinc-500">Genre belum tersedia.</p>}<WidgetTitle title="Sidebar" /></Sidebar>; }
+
+export function Poster({ src, alt, className, loading = "lazy" }) {
+  return <img src={src || "/images/nihnime.jpg"} alt={alt || ""} loading={loading} className={className} onError={(event) => { if (!event.currentTarget.src.endsWith("/images/nihnime.jpg")) event.currentTarget.src = "/images/nihnime.jpg"; }} />;
+}
+function episodeLabel(anime) {
+  if (anime.label) return anime.label;
+  if (anime.latest_episode) return String(anime.latest_episode).replace(/^Episode\s*/i, "Ep ");
+  if (anime.episodeIndex != null) return `Ep ${anime.episodeIndex}`;
+  return "Episode";
+}
+export function SquareGrid({ items, completed = false, history = false }) {
+  return <div className="py-3 gap-4 grid xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">{items.map((anime, index) => {
+    const href = history ? `/episode/${encodeURIComponent(anime.episodeId)}?anime=${encodeURIComponent(anime.animeId || "")}` : completed ? `/anime/${encodeURIComponent(anime.id)}` : `/episode/latest/${encodeURIComponent(anime.id)}`;
+    return <Link href={href} key={`${anime.id || anime.episodeId}-${index}`} className="group relative"><div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={history ? anime.animeTitle : anime.title} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div><div className="p-2"><h3 className="anime1-item-title">{history ? anime.animeTitle : anime.title}</h3>{history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}</div></Link>;
+  })}</div>;
+}
+export function PosterGrid({ items, schedule = false }) {
+  return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">{items.map((anime, index) => <Link key={`${anime.id}-${index}`} href={`/anime/${encodeURIComponent(anime.id)}`} className="group rounded-lg relative"><div className="relative"><Poster className="anime2-item-img" src={anime.image_poster || anime.image_cover} alt={anime.title} /><span className="anime2-item-type">{anime.type || "ANIME"}</span><span className="anime2-item-score"><StarIcon /><span>{anime.score || "N/A"}</span></span><span className="anime2-item-status">{schedule ? (anime.time || anime.status || "-") : (anime.status || "-")}</span></div><div className="p-2"><h3 className="anime2-item-title">{anime.title}</h3></div></Link>)}</div>;
+}
+
+export function Carousel({ items }) {
+  const [current, setCurrent] = useState(0);
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 24);
-    fn(); window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-  // Saran pencarian live (debounce 300ms)
-  useEffect(() => {
-    if (q.trim().length < 2) { setSug([]); return; }
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/list?mode=search&q=${encodeURIComponent(q.trim())}&page=0`);
-        const body = await res.json();
-        setSug((body.data || []).slice(0, 7));
-      } catch { setSug([]); }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q]);
-  return (
-    <header className={`fixed top-0 inset-x-0 z-50 transition-all ${scrolled ? "bg-[#08080d]/90 backdrop-blur-xl border-b border-white/5" : "bg-gradient-to-b from-black/70 to-transparent"}`}>
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
-        <Logo />
-        <nav className="hidden md:flex items-center gap-1 text-sm text-zinc-300 ml-2">
-          <Link className="px-3 py-2 rounded-full hover:bg-white/10 hover:text-white" href="/">Beranda</Link>
-          <Link className="px-3 py-2 rounded-full hover:bg-white/10 hover:text-white" href="/jadwal">Jadwal Rilis</Link>
-          <Link className="px-3 py-2 rounded-full hover:bg-white/10 hover:text-white" href="/jelajahi">Jelajahi</Link>
-          <Link className="px-3 py-2 rounded-full hover:bg-white/10 hover:text-white" href="/bookmark">Bookmark</Link>
-        </nav>
-        <form className="ml-auto flex-1 max-w-md relative" action="/pencarian" autoComplete="off">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input name="q" value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 180)} placeholder="Cari anime… (mis. Naruto)"
-              className="w-full bg-white/8 border border-white/10 focus:border-rose-500/60 focus:bg-white/10 outline-none rounded-full pl-9 pr-4 py-2 text-sm placeholder:text-zinc-500 backdrop-blur" />
-          </div>
-          {open && sug.length > 0 && (
-            <div className="absolute top-full mt-2 inset-x-0 bg-[#12121c] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-              {sug.map((a) => (
-                <Link key={a.id} href={`/anime/${a.id}`} onClick={() => setOpen(false)} className="flex items-center gap-3 px-3 py-2 hover:bg-rose-600/15 transition">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {a.image_poster && <img src={a.image_poster} alt="" className="w-9 h-12 object-cover rounded-md shrink-0" />}
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium line-clamp-1">{a.title}</span>
-                    <span className="block text-[11px] text-zinc-500">{[a.type, a.year, a.genre].filter(Boolean).join(" • ")}</span>
-                  </span>
-                  <Eye size={13} className="ml-auto text-zinc-500 shrink-0" />
-                  <span className="text-[11px] text-zinc-500">{formatViews(a.views)}</span>
-                </Link>
-              ))}
-              <Link href={`/pencarian?q=${encodeURIComponent(q)}`} onClick={() => setOpen(false)} className="block px-3 py-2.5 text-center text-xs font-semibold text-rose-400 hover:bg-rose-600/10">Lihat semua hasil untuk “{q}”</Link>
-            </div>
-          )}
-        </form>
-      </div>
-    </header>
-  );
+    if (items.length < 2) return;
+    const timer = setInterval(() => setCurrent((i) => (i + 1) % items.length), 6000);
+    return () => clearInterval(timer);
+  }, [items.length]);
+  if (!items.length) return null;
+  const anime = items[current % items.length];
+  return <div id="controls-carousel" className="relative w-full" aria-label="Episode pilihan"><div className="relative h-56 overflow-hidden rounded-md md:h-96"><div className="carousel-item" key={anime.id}><Poster loading="eager" src={anime.image_cover || anime.image_poster} className="carousel-item-image" alt={anime.title} /><div className="carousel-item-layer"><div className="carousel-item-cus"><p className="carousel-item-eps"><span className="text-teal-600">{anime.latest_episode || "Episode Terbaru"}</span></p><h1 className="carousel-item-title">{anime.title}</h1><Link href={`/episode/latest/${encodeURIComponent(anime.id)}`} className="carousel-item-btn"><PlayIcon /><span className="text-xs">Tonton Kuy</span></Link></div></div></div></div>{items.length > 1 && <div className="absolute z-30 flex md:gap-10 -translate-x-1/2 space-x-3 bottom-5 left-1/2">{[-1, 1].map((step) => <button key={step} type="button" onClick={() => setCurrent((i) => (i + step + items.length) % items.length)} className="flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none" aria-label={step < 0 ? "Sebelumnya" : "Berikutnya"}><span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/30 group-hover:bg-white/50 group-focus:ring-4 group-focus:ring-zinc-600 dark:bg-zinc-800/30 dark:group-hover:bg-zinc-800/50 dark:group-focus:ring-zinc-500"><svg className="w-4 h-4 text-zinc-700 dark:text-zinc-300" aria-hidden="true" viewBox="0 0 6 10" fill="none"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={step < 0 ? "M5 1 1 5l4 4" : "m1 9 4-4-4-4"} /></svg></span></button>)}</div>}</div>;
 }
 
-export function BottomNav() {
-  const items = [
-    { href: "/", label: "Beranda", icon: Home },
-    { href: "/jadwal", label: "Jadwal", icon: CalendarDays },
-    { href: "/jelajahi", label: "Jelajahi", icon: LayoutGrid },
-    { href: "/bookmark", label: "Bookmark", icon: Bookmark },
-  ];
-  return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-[#0c0c13]/95 backdrop-blur-xl border-t border-white/8 pb-[env(safe-area-inset-bottom)]">
-      <div className="grid grid-cols-4">
-        {items.map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} className="flex flex-col items-center gap-0.5 py-2.5 text-[11px] text-zinc-400 active:text-rose-500">
-            <Icon size={20} />{label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-export function AnimeCard({ anime, rank }) {
-  if (!anime) return null;
-  return (
-    <Link href={`/anime/${anime.id}`} className="group relative shrink-0 w-[128px] sm:w-[150px] fade-up">
-      <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-800 ring-1 ring-white/5 group-hover:ring-rose-500/50 transition">
-        {anime.image_poster
-          /* eslint-disable-next-line @next/next/no-img-element */
-          ? <img src={anime.image_poster} alt={anime.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
-          : <div className="w-full h-full grid place-items-center text-zinc-600 text-xs p-2 text-center">{anime.title}</div>}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20" />
-        {rank != null && <span className="absolute -left-0.5 top-1 text-3xl font-black text-rose-600 drop-shadow-[0_2px_6px_rgba(0,0,0,.8)] italic">#{rank}</span>}
-        {anime.type && <span className="absolute top-1.5 right-1.5 text-[10px] font-bold bg-rose-600 text-white px-1.5 py-0.5 rounded">{anime.type}</span>}
-        {anime.latest_episode && <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold bg-black/70 backdrop-blur px-1.5 py-0.5 rounded text-amber-300">{anime.latest_episode}</span>}
-        <span className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition"><span className="w-11 h-11 rounded-full bg-rose-600/90 grid place-items-center shadow-xl shadow-rose-600/40"><Play size={18} fill="white" /></span></span>
-        <div className="absolute bottom-1.5 left-2 right-2 flex items-center gap-2 text-[10px] text-zinc-300">
-          {anime.year && <span>{anime.year}</span>}
-          <span className="ml-auto inline-flex items-center gap-1"><Eye size={11} />{formatViews(anime.views)}</span>
-        </div>
-      </div>
-      <h3 className="mt-2 text-[13px] font-medium leading-snug line-clamp-2 group-hover:text-rose-400 transition">{anime.title}</h3>
-      {anime.genre && <p className="text-[11px] text-zinc-500 line-clamp-1">{anime.genre}</p>}
-    </Link>
-  );
-}
-
-export function Row({ title, icon: Icon = Flame, items, href, rank = false }) {
-  const ref = useRef(null);
-  if (!items?.length) return null;
-  const scroll = (dir) => ref.current?.scrollBy({ left: dir * 640, behavior: "smooth" });
-  return (
-    <section className="max-w-7xl mx-auto px-4 mt-8">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="w-1 h-5 rounded bg-rose-600" />
-        <h2 className="font-bold text-base sm:text-lg flex items-center gap-2">{Icon && <Icon size={18} className="text-rose-500" />}{title}</h2>
-        {href && <Link href={href} className="ml-auto text-xs text-rose-400 hover:text-rose-300 inline-flex items-center">Lihat Semua <ChevronRight size={14} /></Link>}
-        <div className={`${href ? "" : "ml-auto"} hidden sm:flex gap-1`}>
-          <button onClick={() => scroll(-1)} className="p-1.5 rounded-full bg-white/5 hover:bg-rose-600 transition" aria-label="Geser kiri"><ChevronLeft size={16} /></button>
-          <button onClick={() => scroll(1)} className="p-1.5 rounded-full bg-white/5 hover:bg-rose-600 transition" aria-label="Geser kanan"><ChevronRight size={16} /></button>
-        </div>
-      </div>
-      <div ref={ref} className="flex gap-3 overflow-x-auto no-scrollbar snap-x pb-1 -mx-4 px-4">
-        {items.map((a, i) => <AnimeCard key={`${a.id}-${i}`} anime={a} rank={rank ? i + 1 : undefined} />)}
-      </div>
-    </section>
-  );
-}
-
-export function Hero({ items }) {
-  const slides = (items || []).filter((b) => b.image).slice(0, 8);
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    if (slides.length < 2) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % slides.length), 5500);
-    return () => clearInterval(t);
-  }, [slides.length]);
-  if (!slides.length) return <div className="h-16" />;
-  const s = slides[idx];
-  // link banner format AnimeIn biasanya berisi id anime — jadikan /anime/<id> bila ketemu angka
-  const id = String(s.link || "").match(/\d+/)?.[0];
-  const href = id ? `/anime/${id}` : "/jelajahi";
-  return (
-    <section className="relative h-[62vh] min-h-[380px] max-h-[560px] overflow-hidden">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img key={s.image} src={s.image} alt="" className="absolute inset-0 w-full h-full object-cover kenburns" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#08080d] via-black/35 to-black/30" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
-      <div className="relative max-w-7xl mx-auto px-4 h-full flex flex-col justify-end pb-14">
-        <span className="inline-flex w-fit items-center gap-1.5 text-[11px] font-bold tracking-widest bg-rose-600 px-2.5 py-1 rounded mb-3"><Flame size={12} /> SEDANG TAYANG</span>
-        <Link href={href} className="inline-flex w-fit items-center gap-2 bg-rose-600 hover:bg-rose-500 transition font-semibold px-5 py-2.5 rounded-full shadow-xl shadow-rose-600/30"><Play size={17} fill="white" /> Tonton Sekarang</Link>
-      </div>
-      <div className="absolute bottom-5 right-4 flex gap-1.5">
-        {slides.map((_, i) => (
-          <button key={i} onClick={() => setIdx(i)} aria-label={`Banner ${i + 1}`} className={`h-1.5 rounded-full transition-all ${i === idx ? "w-7 bg-rose-500" : "w-2.5 bg-white/40 hover:bg-white/70"}`} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-export function LoadingGrid() {
-  return <div className="max-w-7xl mx-auto px-4 mt-20 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">{Array.from({ length: 12 }).map((_, i) => <div key={i} className="aspect-[3/4] rounded-xl bg-white/5 animate-pulse" />)}</div>;
-}
-
-export function ErrorBox({ message }) {
-  return (
-    <div className="max-w-xl mx-auto px-4 mt-28 text-center fade-up">
-      <Clock size={40} className="mx-auto text-rose-500 mb-3" />
-      <h2 className="font-bold text-lg mb-1">Server anime sedang tidak terjangkau</h2>
-      <p className="text-sm text-zinc-400 mb-5">{message || "Gagal memuat data. Periksa koneksi lalu coba lagi."}</p>
-      <button onClick={() => location.reload()} className="bg-rose-600 hover:bg-rose-500 px-5 py-2.5 rounded-full text-sm font-semibold">Coba Lagi</button>
-    </div>
-  );
-}
-
-export function Grid({ items }) {
-  return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
-      {items.map((a, i) => <div key={`${a.id}-${i}`} className="[&>a]:w-full"><AnimeCard anime={a} /></div>)}
-    </div>
-  );
-}
+export function Loading({ label = "Memuat data..." }) { return <div className="flex items-center justify-center gap-3 min-h-48 text-sm text-zinc-500" role="status"><span className="loader" aria-hidden="true" /><span>{label}</span></div>; }
+export function ErrorBox({ message, onRetry }) { return <div className="flex flex-col items-center justify-center text-center gap-3 py-12" role="alert"><h1 className="text-xl font-extrabold">Gagal memuat data</h1><p className="text-zinc-600 dark:text-zinc-400">{message || "Terjadi kesalahan. Silakan coba lagi."}</p>{onRetry && <button type="button" onClick={onRetry} className="pagination-item">Coba lagi</button>}<Link href="/" className="text-sky-700 dark:text-sky-400">Kembali ke halaman utama</Link></div>; }
+export function DemoNotice() { return <p className="text-sm rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100" role="status">Mode demo aktif: data dan video berikut adalah contoh, bukan data AnimeIn terkini.</p>; }
+export function Pagination({ page, hasNext, onPage }) { return <nav aria-label="Halaman" className="flex justify-center gap-2 flex-wrap">{page > 0 && <button type="button" className="pagination-item" onClick={() => onPage(page - 1)} aria-label="Halaman sebelumnya">&lt;-</button>}<span className="pagination-item active" aria-current="page">{page + 1}</span>{hasNext && <button type="button" className="pagination-item" onClick={() => onPage(page + 1)} aria-label="Halaman berikutnya">-&gt;</button>}</nav>; }

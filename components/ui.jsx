@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fallbackArtwork } from "@/lib/artwork-client";
+import { artworkYear } from "@/lib/artwork-utils.mjs";
 
 export const DONATION_URL = "https://sociabuzz.com/molinime/tribe";
 export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -44,11 +45,23 @@ export function AlphabetChips({ current }) {
 export function GenericSidebar() { return <Sidebar><WidgetTitle title="Sidebar" /></Sidebar>; }
 export function GenreSidebar({ genres = [] }) { return <Sidebar><WidgetTitle title="Daftar Genre" href="/genres" />{genres.length ? <GenreChips genres={genres} className="mb-6 max-h-64 overflow-y-auto pr-1 custom-scrollbar" /> : <p className="text-sm text-zinc-500">Genre belum tersedia.</p>}<WidgetTitle title="Sidebar" /></Sidebar>; }
 
-export function Poster({ src, alt, year, kind = "poster", className, loading = "lazy" }) {
+export function Poster({ src, alt, airedStart, kind = "poster", className, loading = "lazy" }) {
   const [fallback, setFallback] = useState(null);
-  const placeholder = "/images/nihnime.jpg";
-  const key = `${src || ""}\n${alt || ""}\n${year || ""}\n${kind}`;
+  const placeholder = "/images/poster-unavailable.svg";
+  const year = artworkYear(airedStart);
+  const key = `${src || ""}\n${alt || ""}\n${year}\n${kind}`;
   const displayed = fallback?.key === key ? fallback.url : src || placeholder;
+
+  useEffect(() => {
+    if (src || !alt) return;
+    let active = true;
+    fallbackArtwork(alt, year).then((artwork) => {
+      const url = kind === "cover" ? artwork?.cover || artwork?.poster : artwork?.poster || artwork?.cover;
+      if (active && url) setFallback({ key, url });
+    });
+    return () => { active = false; };
+  }, [src, alt, year, kind, key]);
+
   function handleError() {
     if (displayed === placeholder) return;
     if (fallback?.key === key) { setFallback({ key, url: placeholder }); return; }
@@ -69,11 +82,11 @@ function episodeLabel(anime) {
 export function SquareGrid({ items, completed = false, history = false }) {
   return <div className="py-3 gap-4 grid xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">{items.map((anime, index) => {
     const href = history ? `/episode/${encodeURIComponent(anime.episodeId)}?anime=${encodeURIComponent(anime.animeId || "")}` : completed ? `/anime/${encodeURIComponent(anime.id)}` : `/episode/latest/${encodeURIComponent(anime.id)}`;
-    return <Link href={href} key={`${anime.id || anime.episodeId}-${index}`} className="group relative"><div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={history ? anime.animeTitle : anime.title} year={anime.year} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div><div className="p-2"><h3 className="anime1-item-title">{history ? anime.animeTitle : anime.title}</h3>{history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}</div></Link>;
+    return <Link href={href} key={`${anime.id || anime.episodeId}-${index}`} className="group relative"><div className="relative overflow-hidden rounded-lg"><Poster className="anime1-item-img" src={history ? anime.image : anime.image_poster || anime.image_cover} alt={history ? anime.animeTitle : anime.title} airedStart={anime.aired_start} /><span className="anime1-item-eps">{history ? episodeLabel(anime) : completed ? "Ep END" : episodeLabel(anime)}</span></div><div className="p-2"><h3 className="anime1-item-title">{history ? anime.animeTitle : anime.title}</h3>{history && anime.at && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">{new Date(anime.at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}</p>}</div></Link>;
   })}</div>;
 }
 export function PosterGrid({ items, schedule = false }) {
-  return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">{items.map((anime, index) => <Link key={`${anime.id}-${index}`} href={`/anime/${encodeURIComponent(anime.id)}`} className="group rounded-lg relative"><div className="relative"><Poster className="anime2-item-img" src={anime.image_poster || anime.image_cover} alt={anime.title} year={anime.year} /><span className="anime2-item-type">{anime.type || "ANIME"}</span><span className="anime2-item-score"><StarIcon /><span>{anime.score || "N/A"}</span></span><span className="anime2-item-status">{schedule ? (anime.time || anime.status || "-") : (anime.status || "-")}</span></div><div className="p-2"><h3 className="anime2-item-title">{anime.title}</h3></div></Link>)}</div>;
+  return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">{items.map((anime, index) => <Link key={`${anime.id}-${index}`} href={`/anime/${encodeURIComponent(anime.id)}`} className="group rounded-lg relative"><div className="relative"><Poster className="anime2-item-img" src={anime.image_poster || anime.image_cover} alt={anime.title} airedStart={anime.aired_start} /><span className="anime2-item-type">{anime.type || "ANIME"}</span><span className="anime2-item-score"><StarIcon /><span>{anime.score || "N/A"}</span></span><span className="anime2-item-status">{schedule ? (anime.time || anime.status || "-") : (anime.status || "-")}</span></div><div className="p-2"><h3 className="anime2-item-title">{anime.title}</h3></div></Link>)}</div>;
 }
 
 export function Carousel({ items }) {
@@ -85,7 +98,7 @@ export function Carousel({ items }) {
   }, [items.length]);
   if (!items.length) return null;
   const anime = items[current % items.length];
-  return <div id="controls-carousel" className="relative w-full" aria-label="Episode pilihan"><div className="relative h-56 overflow-hidden rounded-md md:h-96"><div className="carousel-item" key={anime.id}><Poster loading="eager" src={anime.image_cover || anime.image_poster} className="carousel-item-image" alt={anime.title} year={anime.year} kind="cover" /><div className="carousel-item-layer"><div className="carousel-item-cus"><p className="carousel-item-eps"><span className="text-teal-600">{anime.latest_episode || "Episode Terbaru"}</span></p><h1 className="carousel-item-title">{anime.title}</h1><Link href={`/episode/latest/${encodeURIComponent(anime.id)}`} className="carousel-item-btn"><PlayIcon /><span className="text-xs">Tonton Kuy</span></Link></div></div></div></div>{items.length > 1 && <div className="absolute z-30 flex md:gap-10 -translate-x-1/2 space-x-3 bottom-5 left-1/2">{[-1, 1].map((step) => <button key={step} type="button" onClick={() => setCurrent((i) => (i + step + items.length) % items.length)} className="flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none" aria-label={step < 0 ? "Sebelumnya" : "Berikutnya"}><span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/30 group-hover:bg-white/50 group-focus:ring-4 group-focus:ring-zinc-600 dark:bg-zinc-800/30 dark:group-hover:bg-zinc-800/50 dark:group-focus:ring-zinc-500"><svg className="w-4 h-4 text-zinc-700 dark:text-zinc-300" aria-hidden="true" viewBox="0 0 6 10" fill="none"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={step < 0 ? "M5 1 1 5l4 4" : "m1 9 4-4-4-4"} /></svg></span></button>)}</div>}</div>;
+  return <div id="controls-carousel" className="relative w-full" aria-label="Episode pilihan"><div className="relative h-56 overflow-hidden rounded-md md:h-96"><div className="carousel-item" key={anime.id}><Poster loading="eager" src={anime.image_cover || anime.image_poster} className="carousel-item-image" alt={anime.title} airedStart={anime.aired_start} kind="cover" /><div className="carousel-item-layer"><div className="carousel-item-cus"><p className="carousel-item-eps"><span className="text-teal-600">{anime.latest_episode || "Episode Terbaru"}</span></p><h1 className="carousel-item-title">{anime.title}</h1><Link href={`/episode/latest/${encodeURIComponent(anime.id)}`} className="carousel-item-btn"><PlayIcon /><span className="text-xs">Tonton Kuy</span></Link></div></div></div></div>{items.length > 1 && <div className="absolute z-30 flex md:gap-10 -translate-x-1/2 space-x-3 bottom-5 left-1/2">{[-1, 1].map((step) => <button key={step} type="button" onClick={() => setCurrent((i) => (i + step + items.length) % items.length)} className="flex items-center justify-center h-full px-4 cursor-pointer group focus:outline-none" aria-label={step < 0 ? "Sebelumnya" : "Berikutnya"}><span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/30 group-hover:bg-white/50 group-focus:ring-4 group-focus:ring-zinc-600 dark:bg-zinc-800/30 dark:group-hover:bg-zinc-800/50 dark:group-focus:ring-zinc-500"><svg className="w-4 h-4 text-zinc-700 dark:text-zinc-300" aria-hidden="true" viewBox="0 0 6 10" fill="none"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={step < 0 ? "M5 1 1 5l4 4" : "m1 9 4-4-4-4"} /></svg></span></button>)}</div>}</div>;
 }
 
 export function Loading({ label = "Memuat data..." }) { return <div className="flex items-center justify-center gap-3 min-h-48 text-sm text-zinc-500" role="status"><span className="loader" aria-hidden="true" /><span>{label}</span></div>; }

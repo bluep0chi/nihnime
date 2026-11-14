@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="540" viewBox="0 0 360 540">
+  <rect width="360" height="540" fill="#27272a"/>
+  <g fill="none" stroke="#71717a" stroke-linecap="round" stroke-linejoin="round" stroke-width="4">
+    <rect x="132" y="196" width="96" height="76" rx="10"/>
+    <circle cx="159" cy="221" r="8"/>
+    <path d="m140 258 22-21 15 14 18-19 25 26"/>
+  </g>
+  <text x="180" y="311" fill="#d4d4d8" font-family="system-ui, sans-serif" font-size="16" text-anchor="middle">Poster tidak tersedia</text>
+</svg>
